@@ -1,0 +1,89 @@
+
+{
+  "Domains": [
+    {
+      "DomainName": "DomainA",
+      "DomainID": 1,
+      "DomainsDescription": "Description of all domains in the system",
+      "DomainDescription": "Primary domain for NATS messaging",
+      "Connections": [
+        {
+          "Disabled": "false",
+          "ConnectionUniqueName": "NATSConnNews",
+          "ConnectionUniqueID": 3,
+          "VendorName": "NATS.io",
+          "VendorId": 100,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "2.7.2",
+          "TenantID": 3,
+          "ConnectionComments": "NATS JETSTREAM CONNECTION",
+          "ConnectionURL": "nats://localhost:4222",
+          "ConnectionOptions": "TCP_NODELAY=1^CallbackThreads=1^PublicationBackoffBytes=4194304^BackoffSleep_us=2000000^BackoffAttempts=5^FlushTimeoutMs=516^IOBufSizeKB=2048",
+          "Topics": [
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_ALL",
+              "TopicUniqueID": 1004,
+              "TopicDescription": "JS_PUSH (Async): News Sports All Messages (Wildcard)",
+              "PubKey": "",
+              "SubKey": "News.Sports.>",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.>^DurableName=SportsConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_Football",
+              "TopicUniqueID": 1005,
+              "TopicDescription": "JS_PUSH (Async): News Sports Football",
+              "PubKey": "News.Sports.Football",
+              "SubKey": "News.Sports.Football",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.Football^DurableName=FootballConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_College_Football",
+              "TopicUniqueID": 1006,
+              "TopicDescription": "JS_PUSH (Async): News Sports College Football",
+              "PubKey": "News.Sports.Football.College",
+              "SubKey": "News.Sports.Football.College",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.CollegeFootball^DurableName=CollegeFootballConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_MOVIES_ALL",
+              "TopicUniqueID": 1007,
+              "TopicDescription": "JS_PULL (Poll): NEWS: Movies All Messages (Wildcard)",
+              "PubKey": "",
+              "SubKey": "News.Archive.Movies.>",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^SubjectName=News.Archive.Movies.>^DurableName=MoviesArchiveConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Movies_Romance",
+              "TopicUniqueID": 1008,
+              "TopicDescription": "JS_PULL (Poll): NEWS: Movies Romance",
+              "PubKey": "News.Archive.Movies.Romance",
+              "SubKey": "News.Archive.Movies.Romance",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^DurableName=RomanceMoviesArchiveConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Movies_Westerns",
+              "TopicUniqueID": 1009,
+              "TopicDescription": "JS_PULL (Poll): NEWS: Movies Westerns",
+              "PubKey": "News.Archive.Movies.Westerns",
+              "SubKey": "News.Archive.Movies.Westerns",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^DurableName=WesternsMoviesArchiveConsumer"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

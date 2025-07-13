@@ -1,0 +1,44 @@
+
+==============================================================================
+SyncSub: July 2nd, 2025
+Polling for messages across 3 Topics. 2 Topics on 1 connection; another topic on another connection.
+Target = 3 million messages.
+
+---------------- BEGIN: STATISTICS ---------------------
+[0] <ACME.Orders> ==> msg_published_count<1000000> msg_received_count<1000000>
+[1] <ACME.Invoices> ==> msg_published_count<1000000> msg_received_count<1000000>
+[2] <ACME.Shipments> ==> msg_published_count<1000000> msg_received_count<1000000>
+
+Start Time [Start Time => ] HH:MM:SS:ms:us:ns 12:50:23:157:290:083
+End Time   [Start Time => ] HH:MM:SS:ms:us:ns 12:51:54:690:339:839
+
+TOTALS: Published<3000000> AsyncReceived<0> PollReceived<3000000>
+
+---------------- END: STATISTICS ---------------------
+
+[Inferior 1 (process 115384) exited normally]
+(gdb) 
+(gdb) 
+==============================================================================
+SyncSub: July 2nd, 2025
+Polling for messages across 3 Topics. 2 Topics on 1 connection; another topic on another connection.
+Target = 30 million messages.
+
+---------------- BEGIN: STATISTICS ---------------------
+[0] <ACME.Orders> ==> msg_published_count<10000000> msg_received_count<10000000>
+[1] <ACME.Invoices> ==> msg_published_count<10000000> msg_received_count<10000000>
+[2] <ACME.Shipments> ==> msg_published_count<10000000> msg_received_count<10000000>
+
+Start Time [Start Time => ] HH:MM:SS:ms:us:ns 12:56:04:624:253:698
+End Time   [Start Time => ] HH:MM:SS:ms:us:ns 13:11:36:826:487:317
+
+TOTALS: Published<30000000> AsyncReceived<0> PollReceived<30000000>
+
+---------------- END: STATISTICS ---------------------
+
+[Inferior 1 (process 115432) exited normally]
+(gdb) 
+(gdb) 
+
+==============================================================================
+

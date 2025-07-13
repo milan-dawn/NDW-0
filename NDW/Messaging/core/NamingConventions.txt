@@ -1,0 +1,7 @@
+
+ Summary by Context
+Use Case	Naming Style	Example	Recommendation
+Types (e.g. structs, enums)	XMS_ + PascalCase	XMS_TimeBuckets	✅ Most common
+Functions	xms_ + snake_case	xms_add_to_bucket()	✅ Most idiomatic in C
+Macros/Constants	XMS_ + ALL_CAPS	#define XMS_MAX_BUCKETS 1000	✅ Traditional
+Variables	xms_ or plain snake_case	xms_bucket_count	✅ Use snake_case

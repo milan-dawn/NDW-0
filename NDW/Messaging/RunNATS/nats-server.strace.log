@@ -1,0 +1,21 @@
+366634 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=366634, si_uid=0} ---
+366640 setsockopt(3, SOL_IPV6, IPV6_V6ONLY, [1], 4) = 0
+366640 setsockopt(6, SOL_IPV6, IPV6_V6ONLY, [0], 4) = 0
+366640 setsockopt(3, SOL_IPV6, IPV6_V6ONLY, [0], 4) = 0
+366640 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+366643 setsockopt(6, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+366643 setsockopt(7, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+366642 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=366634, si_uid=0} ---
+366640 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=366634, si_uid=0} ---
+366634 --- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
+366642 --- SIGURG {si_signo=SIGURG, si_code=SI_TKILL, si_pid=366634, si_uid=0} ---
+366643 +++ exited with 0 +++
+366642 +++ exited with 0 +++
+366641 +++ exited with 0 +++
+366640 +++ exited with 0 +++
+366639 +++ exited with 0 +++
+366638 +++ exited with 0 +++
+366637 +++ exited with 0 +++
+366636 +++ exited with 0 +++
+366635 +++ exited with 0 +++
+366634 +++ exited with 0 +++

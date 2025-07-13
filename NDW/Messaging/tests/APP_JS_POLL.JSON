@@ -1,0 +1,44 @@
+{
+  "NDWAppConfig": {
+    "AppName": "APP_JSPUSH",
+    "Topics": [
+      {
+        "LogicalUniqueName": "NEWS_MOVIES_ALL",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_MOVIES_ALL",
+        "Enabled": true,
+        "Publish": false,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPull",
+        "PollTimeoutus" : 2000
+      },
+      {
+        "LogicalUniqueName": "NEWS_Movies_Romance",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_Movies_Romance",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPull",
+        "PollTimeoutus" : 2000
+      },
+      {
+        "LogicalUniqueName": "NEWS_Movies_Westerns",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_Movies_Westerns",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPull",
+        "PollTimeoutus" : 2000
+      }
+    ]
+  }
+}
+

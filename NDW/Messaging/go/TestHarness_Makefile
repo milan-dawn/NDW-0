@@ -1,0 +1,26 @@
+# Makefile for compiling testharness Go application
+
+# Path to NDW messaging root
+NDW_MSG_ROOT ?= /home/subrata/AND/code/C/NDW/Messaging
+
+# Output binary name (same as directory)
+TARGET = testharness
+
+# Compiler flags for CGO
+CGO_CFLAGS := -I$(NDW_MSG_ROOT)/core/include
+CGO_LDFLAGS := -L$(NDW_MSG_ROOT)/core/build -lcoremessaging
+
+# Optional Go flags (e.g., disable optimizations for debugging)
+# GOFLAGS := -gcflags=all=-N -l
+
+# Build command
+build:
+	@echo "Compiling Go source with CGO integration..."
+	CGO_CFLAGS="$(CGO_CFLAGS)" \
+	CGO_LDFLAGS="$(CGO_LDFLAGS)" \
+	go build -o $(TARGET) ./testharness
+
+# Clean command
+clean:
+	rm -f $(TARGET)
+

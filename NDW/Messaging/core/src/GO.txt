@@ -1,0 +1,407 @@
+
+==============================================
+Connection go messaging system:
+
+/*
+#cgo CFLAGS: -I.
+#include "AbstractingMessaging.h"
+*/
+import "C"
+import "fmt"
+
+//export GoNDWConnect
+func GoNDWConnect(domain, connection *C.char) C.INT_T {
+    ret := C.ndw_Connect(domain, connection)
+    return ret
+}
+
+func main() {
+    ret := C.ndw_Init()
+    if ret != 0 {
+        fmt.Println("Init failed with code:", int(ret))
+        return
+    }
+    fmt.Println("Init succeeded")
+
+    domain := C.CString("mydomain")
+    connection := C.CString("myconnection")
+    defer C.free(unsafe.Pointer(domain))
+    defer C.free(unsafe.Pointer(connection))
+
+    ret = GoNDWConnect(domain, connection)
+    if ret != 0 {
+        fmt.Println("Connect failed with code:", int(ret))
+        return
+    }
+    fmt.Println("Connect succeeded")
+
+    // Shutdown at the end
+    C.ndw_Shutdown()
+}
+==============================================
+GO code to subscribe to a topic:
+
+/*
+#cgo CFLAGS: -I.
+#include "AbstractingMessaging.h"
+*/
+import "C"
+import (
+    "fmt"
+    "unsafe"
+)
+
+func SubscribeAsyncToTopicName(topicName string) int32 {
+    cTopicName := C.CString(topicName)
+    defer C.free(unsafe.Pointer(cTopicName))
+
+    ret := C.ndw_SubscribeAsyncToTopicName(cTopicName)
+    return int32(ret)
+}
+
+==============================================
+READING ndw_Topic_T*
+-------------------------
+
+/*
+#cgo CFLAGS: -I.
+#include "ndw_topic.h"
+#include <stdbool.h>
+#include <stdint.h>
+*/
+import "C"
+import (
+    "fmt"
+    "unsafe"
+)
+
+func processTopic(topic *C.ndw_Topic_T) {
+    // Read bool fields
+    disabled := bool(topic.disabled)
+    isPub := bool(topic.is_pub_enabled)
+    isSub := bool(topic.is_sub_enabled)
+    isDurable := bool(topic.durable_topic)
+
+    // Read strings
+    desc := C.GoString(topic.topic_description)
+    name := C.GoString(topic.topic_unique_name)
+    debug := C.GoString(topic.debug_desc)
+
+    // Read integers
+    id := int32(topic.topic_unique_id)
+    msgSize := int32(topic.last_msg_received_size)
+
+    // Read byte buffers
+    var msgHeader, msgBody []byte
+    if topic.last_msg_header_received != nil {
+        msgHeader = C.GoBytes(unsafe.Pointer(topic.last_msg_header_received), C.int(msgSize))
+    }
+    if topic.last_msg_received != nil {
+        msgBody = C.GoBytes(unsafe.Pointer(topic.last_msg_received), C.int(msgSize))
+    }
+
+    // Read IP address string (CHAR_T[60])
+    ipAddr := C.GoString((*C.char)(unsafe.Pointer(&topic.last_received_ip_address[0])))
+
+    // Output (or return, etc.)
+    fmt.Println("Topic Info:")
+    fmt.Println("Disabled:", disabled)
+    fmt.Println("Pub Enabled:", isPub)
+    fmt.Println("Sub Enabled:", isSub)
+    fmt.Println("Durable:", isDurable)
+    fmt.Println("Desc:", desc)
+    fmt.Println("Name:", name)
+    fmt.Println("Debug Desc:", debug)
+    fmt.Println("Topic ID:", id)
+    fmt.Println("Last Msg Size:", msgSize)
+    fmt.Println("IP Address:", ipAddr)
+    fmt.Println("Msg Header:", msgHeader)
+    fmt.Println("Msg Body:", msgBody)
+}
+
+==================================================================================
+Entire code:
+
+package main
+
+/*
+#cgo CFLAGS: -I.
+#include "AbstractingMessaging.h"
+#include "Registrydata.h"
+#include "ndw_topic.h"
+
+#include <stdlib.h>
+
+extern void ndwGoMessageHandler(struct ndw_Topic*);
+
+void on_message_arrival(struct ndw_Topic* topic) {
+    ndwGoMessageHandler(topic);
+}
+*/
+import "C"
+
+import (
+    "fmt"
+    "os"
+    "strconv"
+    "time"
+    "unsafe"
+)
+
+const defaultPublishCount = 6
+const defaultQueueSize = 100
+const defaultTimeoutSeconds = 16
+
+var (
+    topicQueue      chan receivedMsg
+    globalSequencer int64 = 0
+)
+
+type receivedMsg struct {
+    topicID       int32
+    topicName     string
+    msgBody       []byte
+    msgSize       int32
+    header        []byte
+    headerSize    int32
+    headerID      uint8
+    headerSizeVal uint8
+    vendorID      uint8
+    timestamp     string
+}
+
+//export ndwGoMessageHandler
+func ndwGoMessageHandler(topic *C.ndw_Topic_T) {
+    topicID := int32(topic.topic_unique_id)
+    topicName := C.GoString(topic.topic_unique_name)
+    msgSize := int32(topic.last_msg_received_size)
+
+    var msg []byte
+    if topic.last_msg_received != nil && msgSize > 0 {
+        msg = C.GoBytes(unsafe.Pointer(topic.last_msg_received), C.int(msgSize))
+    }
+
+    var hdr []byte
+    var headerID, headerSizeVal, vendorID uint8
+    if topic.last_msg_header_received != nil {
+        rawHdr := C.GoBytes(unsafe.Pointer(topic.last_msg_header_received), 2)
+        if len(rawHdr) >= 2 {
+            hdrSize := int(rawHdr[1])
+            hdr = C.GoBytes(unsafe.Pointer(topic.last_msg_header_received), C.int(hdrSize))
+            if len(hdr) >= 3 {
+                headerID = hdr[0]
+                headerSizeVal = hdr[1]
+                vendorID = hdr[2]
+            }
+        }
+    }
+
+    timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+    topicQueue <- receivedMsg{
+        topicID:       topicID,
+        topicName:     topicName,
+        msgBody:       msg,
+        msgSize:       msgSize,
+        header:        hdr,
+        headerSize:    int32(len(hdr)),
+        headerID:      headerID,
+        headerSizeVal: headerSizeVal,
+        vendorID:      vendorID,
+        timestamp:     timestamp,
+    }
+}
+
+func startTopicProcessor(timeout time.Duration) {
+    go func() {
+        timer := time.NewTimer(timeout)
+        defer timer.Stop()
+        for {
+            select {
+            case msg := <-topicQueue:
+                fmt.Printf("<<< Received Message: [%s] Topic ID: %d, Topic Name: %s, Message Size: %d, Message Body: %s, HeaderID: %d, HeaderSize: %d, VendorID: %d\n",
+                    msg.timestamp, msg.topicID, msg.topicName, msg.msgSize, string(msg.msgBody), msg.headerID, msg.headerSizeVal, msg.vendorID)
+                timer.Reset(timeout)
+            case <-timer.C:
+                fmt.Println("No messages received within timeout. Exiting.")
+                os.Exit(0)
+            }
+        }
+    }()
+}
+
+func registerMessageCallback() error {
+    ret := C.ndw_RegisterAsyncMessageHandlerForGO((C.uintptr_t)(unsafe.Pointer(C.on_message_arrival)))
+    if ret != 0 {
+        return fmt.Errorf("ndw_RegisterAsyncMessageHandlerForGO failed with code %d", int(ret))
+    }
+    return nil
+}
+
+func initNDW() error {
+    if err := registerMessageCallback(); err != nil {
+        return err
+    }
+    if ret := C.ndw_Init(); ret != 0 {
+        return fmt.Errorf("ndw_Init failed with code %d", int(ret))
+    }
+    return nil
+}
+
+func shutdownNDW() {
+    C.ndw_Shutdown()
+}
+
+func connectNDW(domain, connection string) error {
+    cDomain := C.CString(domain)
+    cConn := C.CString(connection)
+    defer C.free(unsafe.Pointer(cDomain))
+    defer C.free(unsafe.Pointer(cConn))
+
+    ret := C.ndw_Connect(cDomain, cConn)
+    if ret != 0 {
+        return fmt.Errorf("ndw_Connect failed with code %d", int(ret))
+    }
+    return nil
+}
+
+func subscribeAsync(topic *C.ndw_Topic_T) error {
+    ret := C.ndw_SubscribeAsync(topic)
+    if ret != 0 {
+        return fmt.Errorf("SubscribeAsync failed: %d", int(ret))
+    }
+    return nil
+}
+
+func getConnectionByName(domain *C.ndw_Domain_T, name string) *C.ndw_Connection_T {
+    cName := C.CString(name)
+    defer C.free(unsafe.Pointer(cName))
+    return C.ndw_GetConnectionByNameFromDomain(domain, cName)
+}
+
+func getTopicByName(conn *C.ndw_Connection_T, topicName string) *C.ndw_Topic_T {
+    cName := C.CString(topicName)
+    defer C.free(unsafe.Pointer(cName))
+    return C.ndw_GetTopicByNameFromConnection(conn, cName)
+}
+
+type preparedMessage struct {
+    jsonPtr unsafe.Pointer
+    success bool
+}
+
+func prepareJSONMessage(topic *C.ndw_Topic_T, baseMessage string, sequencerNumber int64, targetSize, headerID, encodingFormat int32) (*preparedMessage, error) {
+    cBaseMessage := C.CString(baseMessage)
+    defer C.free(unsafe.Pointer(cBaseMessage))
+
+    var cMsgSize C.INT_T
+    jsonStrPtr := C.ndw_CreateTestJsonStringofNSize(
+        topic,
+        cBaseMessage,
+        C.LONG_T(sequencerNumber),
+        C.INT_T(targetSize),
+        &cMsgSize,
+    )
+    if jsonStrPtr == nil || cMsgSize == 0 {
+        return nil, fmt.Errorf("Failed to create JSON message")
+    }
+
+    jsonBytes := C.GoBytes(unsafe.Pointer(jsonStrPtr), C.int(cMsgSize))
+    msgPtr := (*C.uchar)(unsafe.Pointer(&jsonBytes[0]))
+    msgSize := C.int(len(jsonBytes))
+
+    ctx := C.ndw_CreateOutMsgCxt(topic, C.INT_T(headerID), C.INT_T(encodingFormat), msgPtr, msgSize)
+    if ctx == nil {
+        C.free(unsafe.Pointer(jsonStrPtr))
+        return nil, fmt.Errorf("ndw_CreateOutMsgCxt returned NULL")
+    }
+
+    return &preparedMessage{jsonPtr: unsafe.Pointer(jsonStrPtr), success: true}, nil
+}
+
+func publishMsg(topic *C.ndw_Topic_T) error {
+    prep, err := prepareJSONMessage(topic, "ACME.Orders messae", globalSequencer, 512, 20, 2)
+    if err != nil {
+        return err
+    }
+    globalSequencer++
+
+    ret := C.ndw_PublishMsg()
+
+    debugStr := C.GoString(topic.debug_desc)
+    timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+    fmt.Printf(">>> Sent Message: [%s] %s\n", timestamp, debugStr)
+
+    C.free(prep.jsonPtr)
+
+    if ret != 0 {
+        return fmt.Errorf("ndw_PublishMsg failed: %d", int(ret))
+    }
+    return nil
+}
+
+func main() {
+    domain := "DomainA"
+    connection := "NATSConn1"
+    topicName := "ACME.Orders"
+
+    queueSize := defaultQueueSize
+    if val := os.Getenv("NDW_QUEUE_SIZE"); val != "" {
+        if parsed, err := strconv.Atoi(val); err == nil && parsed > 0 {
+            queueSize = parsed
+        }
+    }
+    topicQueue = make(chan receivedMsg, queueSize)
+
+    if err := initNDW(); err != nil {
+        fmt.Println("Init error:", err)
+        return
+    }
+    defer shutdownNDW()
+
+    startTopicProcessor(defaultTimeoutSeconds * time.Second)
+
+    if err := connectNDW(domain, connection); err != nil {
+        fmt.Println("Connect error:", err)
+        return
+    }
+
+    cDomain := C.CString(domain)
+    defer C.free(unsafe.Pointer(cDomain))
+    domainPtr := C.ndw_GetDomainByName(cDomain)
+    if domainPtr == nil {
+        fmt.Println("Could not get domain pointer")
+        return
+    }
+
+    connPtr := getConnectionByName(domainPtr, connection)
+    if connPtr == nil {
+        fmt.Println("Could not get connection pointer")
+        return
+    }
+
+    topicPtr := getTopicByName(connPtr, topicName)
+    if topicPtr == nil {
+        fmt.Println("Could not get topic pointer")
+        return
+    }
+
+    if err := subscribeAsync(topicPtr); err != nil {
+        fmt.Println("Subscribe error:", err)
+        return
+    }
+
+    for i := 0; i < defaultPublishCount; i++ {
+        if err := publishMsg(topicPtr); err != nil {
+            fmt.Println("Publish failed:", err)
+            return
+        }
+    }
+
+    fmt.Println("All messages published successfully")
+
+    select {}
+}
+
+
+==================================================================================
+

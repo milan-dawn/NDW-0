@@ -1,0 +1,98 @@
+==275574== Memcheck, a memory error detector
+==275574== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==275574== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==275574== Command: ./NATSTest.out
+==275574== 
+
+ NATS Version <3.11.0-beta>
+
+============= BEGIN: test_async =============
+
+Connection to NATS URL: <nats://localhost:4222>
+Received on 'test.subject.2': Message #1 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #2 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #3 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #4 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #5 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #6 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #7 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #8 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #9 to subject 'test.subject.2'
+Received on 'test.subject.2': Message #10 to subject 'test.subject.2'
+Received on 'test.subject.1': Message #1 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #2 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #3 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #4 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #5 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #6 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #7 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #8 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #9 to subject 'test.subject.1'
+Received on 'test.subject.1': Message #10 to subject 'test.subject.1'
+
+============= END: test_async =============
+
+
+============= BEGIN: test_synchronous =============
+
+Connection to NATS URL: <nats://localhost:4222>
+Received message: Message #1 to subject 'test.subject.1'
+Received message: Message #2 to subject 'test.subject.1'
+Received message: Message #3 to subject 'test.subject.1'
+Received message: Message #4 to subject 'test.subject.1'
+Received message: Message #5 to subject 'test.subject.1'
+Received message: Message #6 to subject 'test.subject.1'
+Received message: Message #7 to subject 'test.subject.1'
+Received message: Message #8 to subject 'test.subject.1'
+Received message: Message #9 to subject 'test.subject.1'
+Received message: Message #10 to subject 'test.subject.1'
+
+============= END: test_synchronous =============
+
+
+============= BEGIN: Test REQUEST-REPLY =============
+
+Connection to NATS URL: <nats://localhost:4222>
+[Requester] Sending request: Request #1 from requester
+[Replier] Received request on 'test.subject.1': Request #1 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #2 from requester
+[Replier] Received request on 'test.subject.1': Request #2 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #3 from requester
+[Replier] Received request on 'test.subject.1': Request #3 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #4 from requester
+[Replier] Received request on 'test.subject.1': Request #4 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #5 from requester
+[Replier] Received request on 'test.subject.1': Request #5 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #6 from requester
+[Replier] Received request on 'test.subject.1': Request #6 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #7 from requester
+[Replier] Received request on 'test.subject.1': Request #7 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #8 from requester
+[Replier] Received request on 'test.subject.1': Request #8 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #9 from requester
+[Replier] Received request on 'test.subject.1': Request #9 from requester
+[Requester] Got reply: ACK from replier
+[Requester] Sending request: Request #10 from requester
+[Replier] Received request on 'test.subject.1': Request #10 from requester
+[Requester] Got reply: ACK from replier
+
+============= END: Test REQUEST-REPLY =============
+
+
+ NATS Version <3.11.0-beta>
+==275574== 
+==275574== HEAP SUMMARY:
+==275574==     in use at exit: 0 bytes in 0 blocks
+==275574==   total heap usage: 7,178 allocs, 7,178 frees, 1,198,187 bytes allocated
+==275574== 
+==275574== All heap blocks were freed -- no leaks are possible
+==275574== 
+==275574== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

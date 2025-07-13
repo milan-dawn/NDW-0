@@ -1,0 +1,239 @@
+
+{
+  "Domains": [
+    {
+      "DomainName": "DomainA",
+      "DomainID": 1,
+      "DomainsDescription": "Description of all domains in the system",
+      "DomainDescription": "Primary domain for NATS messaging",
+      "Connections": [
+        {
+          "Disabled": "true",
+          "ConnectionUniqueName": "NATSConn1",
+          "ConnectionUniqueID": 1,
+          "VendorName": "NATS.io",
+          "VendorId": 100,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "2.7.2",
+          "TenantID": 2,
+          "ConnectionComments": "FIRST Connection",
+          "ConnectionURL": "nats://localhost:4222",
+          "ConnectionOptions": "TCP_NODELAY=1^CallbackThreads=1^PublicationBackoffBytes=4194304^BackoffSleep_us=2000000^BackoffAttempts=5^FlushTimeoutMs=516^IOBufSizeKB=2048",
+          "Topics": [
+            {
+              "Disabled": "true",
+              "TopicUniqueName": "ACME.Orders",
+              "TopicUniqueID": 1001,
+              "TopicDescription": "Order events topic",
+              "PubKey": "ACME.Orders",
+              "SubKey": "ACME.Orders",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824"
+            },
+            {
+              "Disabled": "true",
+              "TopicUniqueName": "ACME.Invoices",
+              "TopicUniqueID": 1002,
+              "TopicDescription": "Invoice events topic",
+              "PubKey": "ACME.Invoices",
+              "SubKey": "ACME.Invoices",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824"
+            }
+          ]
+        },
+        {
+          "Disabled": "true",
+          "ConnectionUniqueName": "NATSConn2",
+          "ConnectionUniqueID": 2,
+          "VendorName": "NATS.io",
+          "VendorId": 100,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "2.7.2",
+          "TenantID": 2,
+          "ConnectionComments": "SECOND CONNECTION",
+          "ConnectionURL": "nats://localhost:4222",
+          "ConnectionOptions": "TCP_NODELAY=1^CallbackThreads=1^PublicationBackoffBytes=4194304^BackoffSleep_us=2000000^BackoffAttempts=5^FlushTimeoutMs=516^IOBufSizeKB=2048",
+          "Topics": [
+            {
+              "Disabled": "true",
+              "TopicUniqueName": "ACME.Shipments",
+              "TopicUniqueID": 1003,
+              "TopicDescription": "Shipment events topic",
+              "PubKey": "ACME.Shipments",
+              "SubKey": "ACME.Shipments",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824"
+            }
+          ]
+        },
+        {
+          "Disabled": "false",
+          "ConnectionUniqueName": "NATSConnNews",
+          "ConnectionUniqueID": 3,
+          "VendorName": "NATS.io",
+          "VendorId": 100,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "2.7.2",
+          "TenantID": 3,
+          "ConnectionComments": "NATS JETSTREAM CONNECTION",
+          "ConnectionURL": "nats://localhost:4222",
+          "ConnectionOptions": "TCP_NODELAY=1^CallbackThreads=1^PublicationBackoffBytes=4194304^BackoffSleep_us=2000000^BackoffAttempts=5^FlushTimeoutMs=516^IOBufSizeKB=2048",
+          "Topics": [
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_ALL",
+              "TopicUniqueID": 1004,
+              "TopicDescription": "News Sports All Messages (Wildcard)",
+              "PubKey": "",
+              "SubKey": "News.Sports.>",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.>^DurableName=SportsConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_Football",
+              "TopicUniqueID": 1005,
+              "TopicDescription": "News Sports Football",
+              "PubKey": "News.Sports.Football",
+              "SubKey": "News.Sports.Football",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.Football^DurableName=FootballConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Sports_College_Football",
+              "TopicUniqueID": 1006,
+              "TopicDescription": "News Sports College Football",
+              "PubKey": "News.Sports.Football.College",
+              "SubKey": "News.Sports.Football.College",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=false^StreamName=NEWS^SubjectName=News.Sports.CollegeFootball^DurableName=CollegeFootballConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_MOVIES_ALL",
+              "TopicUniqueID": 1007,
+              "TopicDescription": "NEWS: Movies All Messages (Wildcard)",
+              "PubKey": "",
+              "SubKey": "News.Archive.Movies.>",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^SubjectName=News.Archive.Movies.>^DurableName=MoviesArchiveConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Movies_Romance",
+              "TopicUniqueID": 1008,
+              "TopicDescription": "NEWS: Movies Romance",
+              "PubKey": "News.Archive.Movies.Romance",
+              "SubKey": "News.Archive.Movies.Romance",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^DurableName=RomanceMoviesArchiveConsumer"
+            },
+            {
+              "Disabled": "false",
+              "TopicUniqueName": "NEWS_Movies_Westerns",
+              "TopicUniqueID": 1009,
+              "TopicDescription": "NEWS: Movies Westerns",
+              "PubKey": "News.Archive.Movies.Westerns",
+              "SubKey": "News.Archive.Movies.Westerns",
+              "TopicOptions": "MsgsLimit=1000000^BytesLimit=1073741824",
+              "VendorTopicOptions": "Jetstream=true^PullSubscribe=true^StreamName=NEWS^DurableName=WesternsMoviesArchiveConsumer"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "DomainName": "DomainB",
+      "DomainID": 2,
+      "DomainDescription": "Domain for Kafka messaging",
+      "Connections": [
+        {
+          "ConnectionUniqueName": "KafkaConn1",
+          "ConnectionUniqueID": 1,
+          "VendorName": "Kafka",
+          "VendorId": 101,
+          "VendorLogicVersion": 2,
+          "VendorRealVersion": "3.4.0",
+          "TenantID": 2,
+          "ConnectionComments": "Kafka connection for topic management",
+          "ConnectionURL": "kafka://kafka.example.com:9092",
+          "Topics": [
+            {
+              "TopicUniqueName": "UserActivity",
+              "TopicUniqueID": 2001,
+              "TopicDescription": "User activity topic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "DomainName": "DomainC",
+      "DomainID": 4,
+      "DomainDescription": "Domain for Solace messaging",
+      "Connections": [
+        {
+          "ConnectionUniqueName": "SolaceConn1",
+          "ConnectionUniqueID": 1,
+          "VendorName": "Solace",
+          "VendorId": 102,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "9.8.1",
+          "TenantID": 2,
+          "ConnectionComments": "Solace connection for messaging",
+          "ConnectionURL": "smf://solace.example.com:55555",
+          "Topics": [
+            {
+              "TopicUniqueName": "Alerts",
+              "TopicUniqueID": 4001,
+              "TopicDescription": "Alert messages topic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "DomainName": "Aeron Messaging",
+      "DomainID": 3,
+      "DomainDescription": "Aeron messaging domain with streamId per connection",
+      "Connections": [
+        {
+          "ConnectionUniqueName": "AeronConn1",
+          "ConnectionUniqueID": 1,
+          "VendorName": "Aeron",
+          "VendorId": 103,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "1.0.0",
+          "TenantID": 2,
+          "ConnectionComments": "Aeron connection for TopicOne",
+          "ConnectionURL": "aeron:udp?endpoint=224.0.1.1:40456|interface=192.168.0.100|streamId=10",
+          "Topics": [
+            {
+              "TopicUniqueName": "TopicOne",
+              "TopicUniqueID": 101,
+              "TopicDescription": "First Aeron topic"
+            }
+          ]
+        },
+        {
+          "ConnectionUniqueName": "AeronConn2",
+          "ConnectionUniqueID": 2,
+          "VendorName": "Aeron",
+          "VendorId": 103,
+          "VendorLogicVersion": 1,
+          "VendorRealVersion": "1.0.0",
+          "TenantID": 2,
+          "ConnectionComments": "Aeron connection for TopicTwo",
+          "ConnectionURL": "aeron:udp?endpoint=224.0.1.2:40457|interface=192.168.0.100|streamId=11",
+          "Topics": [
+            {
+              "TopicUniqueName": "TopicTwo",
+              "TopicUniqueID": 102,
+              "TopicDescription": "Second Aeron topic"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

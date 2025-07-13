@@ -1,0 +1,30 @@
+
+CC = gcc
+CFLAGS = -I../core/include -Wall -g
+LDFLAGS = -rdynamic -L../core/build -lcoremessaging
+
+.PHONY: all clean
+
+all: PubSub.out SyncSub.out JSPush.out JSPoll.out AsyncQ_NATS.out validate_args.out
+
+PubSub.out: PubSub.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+SyncSub.out: SyncSub.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+JSPush.out: JSPush.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+JSPoll.out: JSPoll.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+AsyncQ_NATS.out: AsyncQ_NATS.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+validate_args.out: validate_args.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -f PubSub.out SyncSub.out JSPush.out JSPoll.out AsyncQ_NATS.out
+

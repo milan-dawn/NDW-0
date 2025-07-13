@@ -1,0 +1,48 @@
+
+
+
+
+Other functions:
+(1) typedef void (*natsConnectionHandler)(natsConnection  *nc, void *closure);
+
+(2) /** \brief Callback used to notify the user of errors encountered while processing
+ *         inbound messages.
+ *
+ * This callback is used to process asynchronous errors encountered while processing
+ * inbound messages, such as #NATS_SLOW_CONSUMER.
+ */
+typedef void (*natsErrHandler)(
+        natsConnection *nc, natsSubscription *subscription, natsStatus err,
+        void *closure);
+
+(3) NATS_EXTERN const char* nats_GetLastError(natsStatus *status)
+
+(4) NATS_EXTERN const char*
+nats_GetLastError(natsStatus *status);
+
+/** \brief Returns the calling thread's last known error stack.
+ *
+ * Copies the calling thread's last known error stack into the provided buffer.
+ * If the buffer is not big enough, #NATS_INSUFFICIENT_BUFFER is returned.
+ *
+ * @param buffer the buffer into the stack is copied.
+ * @param bufLen the size of the buffer
+ */
+NATS_EXTERN natsStatus nats_GetLastErrorStack(char *buffer, size_t bufLen);
+
+(5) /** \brief Sets the verbose mode.
+ *
+ * Sets the verbose mode. If `true`, sends are echoed by the server with
+ * an `OK` protocol message.
+ *
+ * The default is `false`.
+ *
+ * @param opts the pointer to the #natsOptions object.
+ * @param verbose `true` for a verbose protocol, `false` otherwise.
+ */
+NATS_EXTERN natsStatus
+natsOptions_SetVerbose(natsOptions *opts, bool verbose);
+
+ 
+
+

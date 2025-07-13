@@ -1,0 +1,210 @@
+
+JS_PUSH:
+===============================================================
+July 3rd, 2025
+
+* Sending messages to 2 PUSH subjects.
+* 2 consumers reading to each subject.
+* And 1 wildcard consumer listening to above 2 subjects.
+
+* Number of Messages Published Per subject: 1 million 
+* Number of Messages Published: 2 million 
+* Number of Bytes per Message: 1024
+* There are 3 subscribers, one being wildcard.
+* Number of Acks Sent upon receiving messages: 4 million (due to wildcard subject).
+* Number of Received Messages: 4 million (due to wildcard subject).
+
+[(tid: 137267981313856) src/Utils.c:153:ndw_DestroyThreadSafeLogger()] ...
+
+---------------- BEGIN: STATISTICS ---------------------
+[0] <NEWS_Sports_ALL> ==> msg_published_count<0> msg_received_count<2000001> commits<2000001> acks<2000001> failed_acks<0>
+[1] <NEWS_Sports_Football> ==> msg_published_count<1000000> msg_received_count<1000001> commits<1000001> acks<1000001> failed_acks<0>
+[2] <NEWS_Sports_College_Football> ==> msg_published_count<1000000> msg_received_count<1000000> commits<1000000> acks<1000000> failed_acks<0>
+
+Start Time [Start Time => ] HH:MM:SS:ms:us:ns 15:42:08:131:673:945
+End Time   [Start Time => ] HH:MM:SS:ms:us:ns 15:46:59:658:960:730
+
+TOTALS: Published<2000000> AsyncReceived<4000002> PollReceived<0>
+
+---------------- END: STATISTICS ---------------------
+
+===============================================================
+July 3rd, 2025
+
+* Sending messages to 2 PUSH subjects.
+* 2 consumers reading to each subject.
+* And 1 wildcard consumer listening to above 2 subjects.
+
+* Number of Messages Published Per subject: 10 million 
+* Number of Messages Published: 20 million (as there are 2 subjects to publish to.)
+* Number of Bytes per Message: 1024
+* There are 3 subscribers, one being wildcard.
+* Number of Bytes per Message: 1024
+* Number of Received Messages: 40 million (due to wildcard subject).
+
+[(tid: 132585196345152) src/Utils.c:153:ndw_DestroyThreadSafeLogger()] ...
+
+---------------- BEGIN: STATISTICS ---------------------
+[0] <NEWS_Sports_ALL> ==> msg_published_count<0> msg_received_count<20000000> commits<20000000> acks<20000000> failed_acks<0>
+[1] <NEWS_Sports_Football> ==> msg_published_count<10000000> msg_received_count<10000000> commits<10000000> acks<10000000> failed_acks<0>
+[2] <NEWS_Sports_College_Football> ==> msg_published_count<10000000> msg_received_count<10000000> commits<10000000> acks<10000000> failed_acks<0>
+
+Start Time [Start Time => ] HH:MM:SS:ms:us:ns 15:58:46:586:608:776
+End Time   [Start Time => ] HH:MM:SS:ms:us:ns 16:52:09:553:628:997
+
+TOTALS: Published<20000000> AsyncReceived<40000000> PollReceived<0>
+
+---------------- END: STATISTICS ---------------------
+
+Running CLI script: ./cli_list_push_consumer_info.sh 
+
+------- Begin PUSH (Asynchronous): Statistics ---------
+CollegeFootballConsumer
+  Last Delivered Message: Consumer sequence: 11,176,027 Stream sequence: 22,352,055 Last delivery: 9m5s ago
+    Redelivered Messages: 0
+    Unprocessed Messages: 0
+FootballConsumer
+  Last Delivered Message: Consumer sequence: 11,176,029 Stream sequence: 22,352,054 Last delivery: 9m5s ago
+    Redelivered Messages: 0
+    Unprocessed Messages: 0
+SportsConsumer
+  Last Delivered Message: Consumer sequence: 22,352,056 Stream sequence: 22,352,055 Last delivery: 9m5s ago
+    Redelivered Messages: 0
+    Unprocessed Messages: 0
+
+Running CLI script on the stream: ./cli_show_stream_info.sh
+
+--------------------
+Information for Stream NEWS created 2025-07-03 15:26:50
+
+                Subjects: News.Headlines, News.Sports.>, News.Tech, News.Archive.Movies.>
+                Replicas: 1
+                 Storage: File
+
+Options:
+
+               Retention: Limits
+         Acknowledgments: true
+          Discard Policy: Old
+        Duplicate Window: 2m0s
+              Direct Get: true
+       Allows Msg Delete: false
+            Allows Purge: false
+  Allows Per-Message TTL: false
+          Allows Rollups: false
+
+Limits:
+
+        Maximum Messages: unlimited
+     Maximum Per Subject: unlimited
+           Maximum Bytes: 14 GiB
+             Maximum Age: unlimited
+    Maximum Message Size: unlimited
+       Maximum Consumers: unlimited
+
+State:
+
+            Host Version: 2.11.3
+      Required API Level: 0 hosted at level 1
+                Messages: 12,458,471
+                   Bytes: 14 GiB
+          First Sequence: 9,893,585 @ 2025-07-03 16:17:59
+           Last Sequence: 22,352,055 @ 2025-07-03 16:52:09
+        Active Consumers: 8
+      Number of Subjects: 2
+
+
+--------------------
+Total Consumption:
+Maximum Bytes: 15.032386 GB
+Used Bytes:    15.032386 GB
+--------------------
+
+| Metric                          | N = 1M                      | N = 10M                    |
+| ------------------------------- | --------------------------- | -------------------------- |
+| Total messages published        | 2,000,000                   | 20,000,000                 |
+| Total messages delivered        | 4,000,000                   | 40,000,000                 |
+| Total acks sent                 | 4,000,000                   | 40,000,000                 |
+| Message size                    | 1,120 bytes                 | 1,120 bytes                |
+| Total bytes published           | \~2.24 GB                   | \~22.4 GB                  |
+| Total bytes delivered (fan-out) | \~4.48 GB                   | \~44.8 GB                  |
+| Total ack traffic               | (depends on ack frame size) | same scale, \~40M messages |
+
+| Run       | N          | Msg Size (bytes) | Messages Delivered | Total Data (GB)          |
+| --------- | ---------- | ---------------- | ------------------ | ------------------------ |
+| Test 1    | 1,000,000  | 1,120            | 4,000,000          | \~4.18 GB                |
+| Test 2    | 10,000,000 | 1,120            | 40,000,000         | \~41.76 GB               |
+| **Total** | —          | —                | 44,000,000         | **\~45.94 GB** delivered |
+
+BUT:
+- JetStream does not store duplicates per delivery.
+- Each message is only stored once in the stream, regardless of how many consumers receive it.
+- So JetStream stored only the 2 published streams worth:
+- 1M + 10M = 11M messages
+- 11M × 1,120 bytes ≈ 12.32 GB raw data
+- Add indexing, headers, metadata, segment files, deduplication windows → this brings you to ~15 GB total
+
+"max_bytes": 15000000000
+"discard": "old"
+
+Because your stream has:
+- "max_bytes": 15000000000
+- "discard": "old"
+
+So:
+- When usage hits 15 GB, JetStream evicts the oldest messages
+- The stream stays full at max_bytes capacity
+- New messages push out old ones (FIFO-style), but total storage remains capped
+- This is by design.
+
+| Observation                        | Explanation                                           |
+| ---------------------------------- | ----------------------------------------------------- |
+| `Used Bytes == Maximum Bytes`      | JetStream reached its storage cap (15 GB)             |
+| Disk capped at \~15 GB             | Matches your `max_file_store` and `max_bytes`         |
+| Stream held 11M published messages | Deduplicated to \~15 GB footprint (includes overhead) |
+
+Running CLI: nats stream info NEWS --json | jq '.state.messages'
+12458471
+
+tells us:
+Your NEWS stream is currently holding 12,458,471 messages in persistent storage.
+
+Now let’s see how well this matches expectations given your earlier stress tests and storage cap.
+
+✅ Let’s Cross-Check
+📦 You Published:
+- 1M messages in test #1
+- 10M messages in test #2
+- Total messages published: 11M
+- Each message was ~1,120 bytes
+
+BUT as noted before:
+- You had 2 subjects, so total messages published into the stream = 11M × 2 = 22M
+
+However:
+- Only one copy per message is stored in the stream
+- JetStream doesn’t duplicate messages for each subject or consumer
+- The 22M messages are fan-outs, not disk writes
+
+So:
+✅ You physically stored ~22M messages, but JetStream can’t hold all of them — it evicted the older ones when storage hit 15 GB.
+
+Now You Have:
+- 12.45 million messages retained
+- Total reported stream size: 15.03 GB
+- This gives an average message size on disk of:
+
+15.03 GB / 12.45 million = ~1,208 bytes per message
+Which aligns very closely with your original 1,120 bytes message size, plus JetStream overhead (headers, segment metadata, indexing, checksums, etc.).
+
+Final Verdict
+Yes — the current state of:
+  - Used Bytes = 15.03 GB
+  - Max Bytes = 15.03 GB
+  - Stored Messages ≈ 12.45 million
+
+…is exactly what you should expect after publishing 22 million messages to a 15 GB-capped stream with ~1.1 KB messages and discard: old.
+
+
+===============================================================
+

@@ -1,0 +1,23 @@
+==186409== Memcheck, a memory error detector
+==186409== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==186409== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==186409== Command: ./JSPullTest
+==186409== 
+getsockopt(SO_SNDBUF): Initial send buffer size: 2626560 bytes
+getsockopt(SO_SNDBUF): New send buffer size: 33554432 bytes
+getsockopt(SO_RCVBUF): Initial receive buffer size: 131072 bytes
+getsockopt(SO_RCVBUF): New receive buffer size: 33554432 bytes
+Pulling messages for consumer 'RomanceMoviesArchiveConsumer'...
+[RomanceMoviesArchiveConsumer] Received: Romance Movie 1
+[RomanceMoviesArchiveConsumer] Received: Romance Movie 2
+Pulling messages for consumer 'MoviesArchiveConsumer'...
+[MoviesArchiveConsumer] Received: Romance Movie 1
+[MoviesArchiveConsumer] Received: Romance Movie 2
+==186409== 
+==186409== HEAP SUMMARY:
+==186409==     in use at exit: 0 bytes in 0 blocks
+==186409==   total heap usage: 7,250 allocs, 7,250 frees, 1,056,156 bytes allocated
+==186409== 
+==186409== All heap blocks were freed -- no leaks are possible
+==186409== 
+==186409== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

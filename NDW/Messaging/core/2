@@ -1,0 +1,1 @@
+gcc -fPIC -Iinclude -I/usr/local/include -c src/Registrydata.c -o src/Registrydata.o

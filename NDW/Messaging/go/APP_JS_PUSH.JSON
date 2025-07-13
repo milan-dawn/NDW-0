@@ -1,0 +1,43 @@
+{
+  "NDWAppConfig": {
+    "AppName": "APP_JSPUSH",
+    "Topics": [
+      {
+        "LogicalUniqueName": "NEWS_Sports_ALL",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_Sports_ALL",
+        "Enabled": true,
+        "Publish": false,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPush",
+        "PollTimeoutus" : 10
+      },
+      {
+        "LogicalUniqueName": "NEWS_Sports_Football",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_Sports_Football",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPush",
+        "PollTimeoutus" : 10
+      },
+      {
+        "LogicalUniqueName": "NEWS_Sports_College_Football",
+        "Domain": "DomainA",
+        "Connection": "NATSConnNews",
+        "TopicName": "NEWS_Sports_College_Football",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "JS",
+        "SubscribeType": "JSPush",
+        "PollTimeoutus" : 10
+      }
+    ]
+  }
+}

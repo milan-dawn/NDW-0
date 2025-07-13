@@ -1,0 +1,9 @@
+{
+  "name": "TechConsumer",
+  "filter_subject": "News.Tech",
+  "deliver_subject": "News.Tech.Consumer",
+  "ack_policy": "explicit",
+  "deliver_policy": "all",
+  "max_deliver": -1
+}
+

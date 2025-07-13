@@ -1,0 +1,43 @@
+{
+  "NDWAppConfig": {
+    "AppName": "My App",
+    "Topics": [
+      {
+        "LogicalUniqueName": "Topic1",
+        "Domain": "DomainA",
+        "Connection": "NATSConn1",
+        "TopicName": "ACME.Orders",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "NATS",
+        "SubscribeType": "NATSPoll",
+        "PollTimeoutus" : 1
+      },
+      {
+        "LogicalUniqueName": "Topic2",
+        "Domain": "DomainA",
+        "Connection": "NATSConn1",
+        "TopicName": "ACME.Invoices",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "NATS",
+        "SubscribeType": "NATSPoll",
+        "PollTimeoutus" : 1
+      },
+      {
+        "LogicalUniqueName": "Topic3",
+        "Domain": "DomainA",
+        "Connection": "NATSConn2",
+        "TopicName": "ACME.Shipments",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "NATS",
+        "SubscribeType": "NATSPoll",
+        "PollTimeoutus" : 1
+      }
+    ]
+  }
+}

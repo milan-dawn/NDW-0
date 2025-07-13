@@ -1,0 +1,13 @@
+make[1]: Entering directory '/home/subrata/AND/code/C/NDW/Messaging/core'
+make[1]: Leaving directory '/home/subrata/AND/code/C/NDW/Messaging/core'
+make[1]: Entering directory '/home/subrata/AND/code/C/NDW/Messaging/core'
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/AbstractMessaging.c -o build/AbstractMessaging.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/MPSCQ.c -o build/MPSCQ.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/MsgHeader_1.c -o build/MsgHeader_1.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/MsgHeaders.c -o build/MsgHeaders.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/NATSImpl.c -o build/NATSImpl.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/Queues.c -o build/Queues.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/Registrydata.c -o build/Registrydata.o
+cc -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -c src/Utils.c -o build/Utils.o
+cc build/AbstractMessaging.o build/MPSCQ.o build/MsgHeader_1.o build/MsgHeaders.o build/NATSImpl.o build/Queues.o build/Registrydata.o build/Utils.o -o build/libcoremessaging.so -shared -L/usr/local/lib -lcjson -lnats -lpthread -lm -ldl
+make[1]: Leaving directory '/home/subrata/AND/code/C/NDW/Messaging/core'

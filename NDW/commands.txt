@@ -1,0 +1,55 @@
+
+=======================================
+(1) This will display the total size of the current directory and its subdirectories in human-readable format. If you want the size specifically in megabytes, you can use the --block-size=M option:
+------
+du -s --block-size=M .
+------
+
+This will display the total size in megabytes.
+
+=======================================
+(2) You can use the find and du commands to find the largest file sizes in all subdirectories. Here's an example:
+------
+find . -type f -exec du -h {} + | sort -rh | head -n 10
+------
+
+=======================================
+(3) Alternatively, you can use the find and ls commands:
+------
+find . -type f -exec ls -lh {} + | sort -k 5 -rh | head -n 10
+------
+
+This command uses ls to get the file size and other information, and sort to sort the output by file size.
+=======================================
+(4) You can also use the du command with the --max-depth option to find the largest files in each subdirectory:
+------
+du -ah --max-depth=1 | sort -rh | head -n 10
+------
+
+This will show the largest files or directories in the current directory and its immediate subdirectories.
+
+=======================================
+(5) To get the total size of all files in the current directory and its subdirectories, you can use the du command with the -s option:
+------
+du -sh .
+------
+
+This will give you the total size of all files in the current directory and its subdirectories in human-readable format (-h option).
+=======================================
+(6) The du -ch command does not sort the output by size. If you want to sort the output by size, you can use the following command:
+------
+du -h | sort -h
+------
+=======================================
+(7) If you want to see the top N largest files/directories, you can use the head command:
+------
+du -h | sort -hr | head -n 10
+------
+This will display the top 10 largest files/directories.
+=======================================
+(8) However, the grand total might not be exactly at the end of the output, depending on its size. A better way to get the grand total would be to use a separate command:
+------
+du -sh .
+------
+=======================================
+

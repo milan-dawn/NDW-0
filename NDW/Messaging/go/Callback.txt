@@ -1,0 +1,191 @@
+In ndw:
+----------------------------------------------------
+package ndw
+
+import "unsafe"
+
+// Go callback type
+type AppNDWAsyncMsgCallbackType func(topicData *NDW_Topic_Data, msg *NDW_ReceivedMsg)
+
+var appCallback AppNDWAsyncMsgCallbackType
+
+// Register Go app callback
+func RegisterGoCallback(cb AppNDWAsyncMsgCallbackType) {
+	appCallback = cb
+}
+
+// Called from a Go bridge that’s registered in C
+func goInternalCallbackBridge(topicPtr unsafe.Pointer) {
+	topic := (*C.ndw_Topic_T)(topicPtr)
+
+	topicData, ok := topicPtrToData[topic]
+	if !ok {
+		NDW_LOGERR("No topic data found for pointer")
+		return
+	}
+	msg := NDW_BuildReceivedMsg(unsafe.Pointer(topic))
+
+	if appCallback != nil {
+		appCallback(topicData, msg)
+	}
+}
+
+----------------------------------------------------
+In ndw:
+/*
+#include <stdint.h>
+
+typedef void (*ndw_GOAsyncMsgHandler)(void*);
+
+static ndw_GOAsyncMsgHandler go_handler = 0;
+
+static void invoke_go_handler(void* ptr) {
+    if (go_handler) {
+        go_handler(ptr);
+    }
+}
+
+static void register_go_handler(ndw_GOAsyncMsgHandler handler) {
+    go_handler = handler;
+}
+*/
+import "C"
+import "unsafe"
+
+//export goAsyncMsgCBridge
+func goAsyncMsgCBridge(ptr unsafe.Pointer) {
+	goInternalCallbackBridge(ptr)
+}
+
+func InitBridge() {
+	C.register_go_handler((C.ndw_GOAsyncMsgHandler)(C.goAsyncMsgCBridge))
+}
+
+
+You’re now passing a void* to Go, which means C never needs to know about Go, and Go never exports symbols — which avoids the //export restriction.
+----------------------------------------------------
+Modify C to call the function pointer set via register_go_handler() instead of calling ndwGoMessageHandler directly.
+
+This also avoids hardbinding to //export.
+
+
+✅ Final Result
+🧼 Your Go apps have no knowledge of C.ndw_Topic_T
+
+🧱 All C interactions stay inside the ndw package
+
+🚫 No //export functions needed — avoids Go toolchain conflict
+
+💡 You can now build multiple apps without clashing symbols
+----------------------------------------------------
+
+// AbstractMessaging.h
+
+#ifndef ABSTRACT_MESSAGING_H
+#define ABSTRACT_MESSAGING_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void (*ndw_GOAsyncMsgHandler)(void*);
+
+// Allows Go to register its callback
+void ndw_SetGoMessageHandler(ndw_GOAsyncMsgHandler handler);
+
+// Internal call from C when message arrives
+void ndw_InvokeGoMessageHandler(void* topic_ptr);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // ABSTRACT_MESSAGING_H
+
+
+Source File:
+// AbstractMessaging.c
+
+#include "AbstractMessaging.h"
+#include <stdio.h>
+
+// Static function pointer to hold Go callback
+static ndw_GOAsyncMsgHandler g_go_msg_handler = NULL;
+
+void ndw_SetGoMessageHandler(ndw_GOAsyncMsgHandler handler) {
+    g_go_msg_handler = handler;
+}
+
+void ndw_InvokeGoMessageHandler(void* topic_ptr) {
+    if (g_go_msg_handler) {
+        g_go_msg_handler(topic_ptr);
+    } else {
+        fprintf(stderr, "❌ ERROR: Go message handler not registered!\n");
+    }
+}
+
+----------------------------------------------------
+
+=========================================================
+Take # 2:
+
+Delete or comment out
+
+// static ndw_GOAsyncMsgHandler ndw_go_msghandler = NULL;
+
+// void ndw_SetGoMessageHandler(ndw_GOAsyncMsgHandler handler) {
+//     ndw_go_msghandler = handler;
+// }
+
+// if (ndw_go_msghandler)
+//     ndw_go_msghandler(topic);
+
+---------------------------
+Add to header file:
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// New registration method (Go passes uintptr_t from cgo.Handle)
+void ndw_RegisterGoHandler(uintptr_t handler_id);
+
+// Called by C code when an async message arrives
+void ndw_InvokeGoHandler(uintptr_t handler_id, ndw_Topic_T* topic);
+
+#ifdef __cplusplus
+}
+#endif
+
+---------------------------
+C source code:
+
+#include "AbstractMessaging.h"
+
+// Global handle ID set from Go
+static uintptr_t g_go_handler_id = 0;
+
+void ndw_RegisterGoHandler(uintptr_t handler_id) {
+    g_go_handler_id = handler_id;
+}
+
+// This will be implemented on the Go side
+extern void ndwGoMessageDispatch(uintptr_t handler_id, ndw_Topic_T* topic);
+
+// C code calls this when message arrives
+void on_async_message_from_c(ndw_Topic_T* topic) {
+    if (g_go_handler_id != 0) {
+        ndwGoMessageDispatch(g_go_handler_id, topic);
+    }
+}
+
+replayce old ndw_go_msghandler(topic) call with:
+on_async_message_from_c(topic);
+
+
+
+---------------------------
+
+---------------------------

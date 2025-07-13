@@ -1,0 +1,993 @@
+
+-------------------------------
+(A) Stream Name and Stream Subjects:
+"name": "NEWS",
+  "subjects": [
+    "News.Headlines",
+    "News.Sports",
+    "News.Sports.Football",
+    "News.Tech",
+    "News.Archive.Movies",
+    "News.Archive.Movies.Romance"
+  ],
+
+- Stream Name is News, and a Stream Subject is News.Sports
+- A publisher MUST use a Stream Subject.
+
+(B) PUSH: A Push consumer Configuration.
+nats consumer add NEWS SportsConsumer \
+  --filter='News.Sports.>' \
+  --target=News.Sports.Consumer \
+  --deliver=all \
+  --ack=explicit \
+  --max-deliver=100 \
+  --flow-control \
+  --heartbeat=30s \
+  --defaults
+
+
+- The token "SportsConsumer" is called Durable Name.
+- Filter is what a subscriber will listen to. Note this one has a wildcard.
+- Target? Not well know what JS Stream uses it for.
+
+
+(C) PUSH: Publisher code using Push publication:
+- Create a jsCxt object, and put  and use natsConnection_Jetstream and pass reference to the js.
+- When a Publisher sends a message it uses the js_Publish function.
+- This function has to pass in a pub_subject == A Stream subject, e.g., "News.Tech".
+
+(D) PUSH: Push Consumer (asynchronous notification)
+- Create jsSubOptions object and stick in
+    .Stream = Stream Name ("NEWS")
+    .Consumer = Durable Name ("SportsConsumer")
+    .AckPolicy = js_AckExplicit.
+    .ManualAck = true.
+- This jsSubOptions object needs to passed to js_Subscribe function along with 2 other key parameters.
+- Needs Filter Subject, e.g., ""News.Sports.>"
+- Need DurableName, "SportsConsumer" (yet again!)
+
+(E) PULL: Pull based Consumer.
+# pull-based consumer (no --target, no --deliver)
+nats consumer add NEWS RomanceMoviesArchiveConsumer \
+  --filter=News.Archive.Movies.Romance \
+  --pull \
+  --ack=explicit \
+  --max-deliver=100 \
+  --defaults
+
+Also, let us add a wildcard based Consumer.
+
+# pull-based consumer (no --target, no --deliver)
+nats consumer add NEWS MoviesArchiveConsumer \
+  --filter='News.Archive.>' \
+  --pull \
+  --ack=explicit \
+  --max-deliver=100 \
+  --defaults
+
+(F) PULL: Publishing on Pull based Consumer
+- Put in Stream subject name, e.g., "News.Archive.Movies.Romance", "News.Archive.Movies".
+
+(G) PULL: Subscrible for a Pull based Consumer
+- Use js_PullSubscribe function all. Parameters needed:
+- Filter, e.g., "News.Archive>", "MoviesArchiveConsumer"
+- Durable,e.g., "RomanceMoviesAchiveConsumer", "MoviesArchiveConsumer"
+
+(H) How to know if a Consumer is PUSH or PULL based?
+Run the command: nats consumer info <Stream> <Stream Durable Name> and look for "Pull Mode: true".
+Example:
+nats consumer info NEWS MoviesArchiveConsumer
+Information for Consumer NEWS > MoviesArchiveConsumer created 2025-06-10T21:54:18-04:00
+
+Configuration:
+
+                    Name: MoviesArchiveConsumer
+               Pull Mode: true
+          Filter Subject: News.Archive.>
+          Deliver Policy: All
+              Ack Policy: Explicit
+                Ack Wait: 30.00s
+           Replay Policy: Instant
+      Maximum Deliveries: 100
+         Max Ack Pending: 1,000
+       Max Waiting Pulls: 512
+
+State:
+
+            Host Version: 2.11.3
+      Required API Level: 0 hosted at level 1
+  Last Delivered Message: Consumer sequence: 12 Stream sequence: 12 Last delivery: 11m24s ago
+    Acknowledgment Floor: Consumer sequence: 12 Stream sequence: 12 Last Ack: 11m24s ago
+        Outstanding Acks: 0 out of maximum 1,000
+    Redelivered Messages: 0
+    Unprocessed Messages: 0
+           Waiting Pulls: 0 of maximum 512
+
+(I) What happens if 2 distinct streams have the same Stream subject?
+- Note that during publication the js_Publish code does NOT have a stream's name.
+- This means, you should keep ALL stream subject names unique across ALL streams.
+
+-  Only one stream will accept the message, and it will be the first stream that matches, in the internal JetStream order. The message is not sent to multiple streams, even if they share the same subject.
+
+- JetStream enforces a rule: Only one stream may match a subject. If two streams overlap, JetStream rejects the second stream at creation.
+
+- Why JetStream Doesn't Require Stream Name During Publish
+
+It’s a design choice rooted in NATS Core philosophy:
+
+Subjects are the primary routing mechanism.
+Streams subscribe to subjects — they don’t own or publish to them explicitly.
+So:
+
+A producer just sends on a subject (e.g., "News.Tech").
+The server decides which stream, if any, matches that subject and captures it.
+
+(J) What happens if we do the same but across 2 different NATS servers?
+- Each server has its own independent Jet Stream subsystem.
+- So publishing to Server A has no effect on Server B.
+- Important Clarification: If you are NOT using a cluster or supercluster, then:
+    - NATS server do NOT share state.
+    - Each server is a separate island.
+
+You Want Shared Behavior Across Servers:
+
+You have 3 options:
+
+1. Clustered NATS (Same Logical Server)
+- Multiple NATS nodes, but one JetStream state
+- Stream definitions and messages are replicated
+- JetStream ensures only one stream can claim a subject
+- So in a cluster:
+    - Subject collision across streams is disallowed
+    - Publishing is consistent: subject → stream
+
+2. Superclusters (Multiple Logical Zones)
+- Each zone (server or cluster) has its own JetStream
+- Connected via leafnodes or gateways
+- Messages can flow between zones, but:
+    - JetStream state is not shared
+    - Subject collisions can exist in separate zones
+- This allows geographic or logical isolation
+
+3. Bridge via Message Forwarding or Mirroring
+- You can set up mirrors or sources across streams
+- Example: Server B defines a stream that mirrors stream from Server A
+
+| Setup Type         | Subject Collisions Allowed | JetStream Shared | Publish Affects Both? |
+| ------------------ | -------------------------- | ---------------- | --------------------- |
+| 2 Distinct Servers | ✅ Yes                      | ❌ No             | ❌ No                  |
+| Clustered Servers  | ❌ No                       | ✅ Yes            | ✅ Yes                 |
+| Supercluster       | ✅ Yes (in separate zones)  | ❌ No (per zone)  | ✅ If routed properly  |
+
+
+(K) Discrepancy in PUSH vs PULL subscription API parameters.
+- In the Push subcsription C code it is using 3 of the above parameters, which are, Stream Name, Stream Durable Name and the Filter. The code uses a jsSubOptions field and inserts the Stream Name.
+- However in the Pull subscription C code is using only 2 of the above parameters, Stream Durable Name and Filter Name.There is no jsSubOptions data structure used.
+- Why the difference between the Pull vs Push subscription.
+
+(1) Push-based Consumers Can Be Created by the API
+- js_Subscribe can auto-create a push-based consumer if it doesn't exist yet.
+- In that case, NATS must know the Stream where this consumer should live.
+- Hence subOpts.Stream = "NEWS" is required (for creation context).
+- So: Stream name is needed so JetStream knows where to add this push consumer.
+
+(2) Pull-based Consumers Must Already Exist
+- js_PullSubscribe() does not auto-create a pull consumer.
+- It simply binds to an existing durable consumer.
+- Since the consumer already exists:
+- JetStream already knows its Stream, Filter, Config, etc.
+- So there's no need to specify Stream or use jsSubOptions
+    -If the durable doesn’t exist, js_PullSubscribe() fails — unlike push.
+
+(3) Best Practices
+- For Push: Use jsSubOptions with .Stream = "NEWS" and optional config
+- For Pull: Use js_PullSubscribe() only after adding the consumer via CLI or API
+- If you want consistent config handling in both paths, manually enforce that the durable and stream exist before subscribing
+
+
+(4) Summary Table for Auto-Creation
+| Subscription Type | Auto-Creation | Stream Needed? | Uses `jsSubOptions`? | Requires Durable? |
+| ----------------- | ------------- | -------------- | -------------------- | ----------------- |
+| **Push**          | ✅ Yes         | ✅ Yes          | ✅ Yes                | ❌ Optional        |
+| **Pull**          | ❌ No          | ❌ No           | ❌ No                 | ✅ Required        |
+
+
+(5) JetStream Pull vs Push Consumer - Summary (No Auto-Creation)
+| Feature                           | **Pull-Based Consumer**                        | **Push-Based Consumer**                         |
+| --------------------------------- | ---------------------------------------------- | ----------------------------------------------- |
+| **Stream Name Required in Code?** | ❌ No (JetStream infers from durable name)      | ✅ Yes (via `jsSubOptions.Stream`)               |
+| **Filter Subject Provided?**      | ✅ Yes (in function argument)                   | ✅ Yes (in function argument)                    |
+| **Durable Name Required?**        | ✅ Yes                                          | ✅ Yes (for binding; optional for ephemeral)     |
+| **Uses `jsSubOptions`?**          | ❌ No                                           | ✅ Yes (stream name and optional config)         |
+| **Auto-Creation of Consumer?**    | ❌ No                                           | ❌ No (in your use case)                         |
+| **Subscription Function**         | `js_PullSubscribe(...)`                        | `js_Subscribe(...)`                             |
+| **Message Delivery Mode**         | Client explicitly fetches messages (polling)   | Server pushes messages to callback or sync sub  |
+| **Ideal For**                     | High-control polling, backpressure, batching   | Event-driven reactive message handling          |
+| **Server Pull Buffering?**        | ✅ Yes (on server; messages held until fetched) | ❌ No (messages delivered immediately to client) |
+
+(6) Summary table with the 4 parameters on Push vs Pull Subscription
+
+| Parameter               | Pull Consumer Usage                                                        | Push Consumer Usage                                                                |
+| ----------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Stream Name**         | ❌ Not passed in `js_PullSubscribe()` (already known by durable)            | ✅ Passed in `jsSubOptions.Stream` when subscribing                                 |
+| **Stream Subject Name** | ✅ Passed as subject argument in `js_PullSubscribe()`                       | ✅ Passed as subject argument in `js_Subscribe()`                                   |
+| **Stream Durable Name** | ✅ Passed as durable name argument in `js_PullSubscribe()` (must pre-exist) | ✅ Passed in subscription options (durable consumer name)                           |
+| **Filter**              | ✅ Filter is inherent in the durable consumer (must pre-exist with filter)  | ✅ Passed as subject argument in `js_Subscribe()` (used to create or bind consumer) |
+
+
+(7) Better Summary Table
+| Consumer Type | Stream Name                      | Stream Subject Name        | Stream Durable Name             | Filter                             |
+| ------------- | -------------------------------- | -------------------------- | ------------------------------- | ---------------------------------- |
+| **Pull**      | Not used (known from durable)    | Passed as subject argument | Passed as durable name argument | Implied by durable consumer config |
+| **Push**      | Passed via `jsSubOptions.Stream` | Passed as subject argument | Passed via subscription options | Passed as subject argument         |
+
+
+---------------------------------
+
+Install Jet Stream CLI:
+
+curl -L https://nats.io/install.sh | sh
+-OR-
+go install github.com/nats-io/natscli/nats@latest
+
+*** The above curl command did not work.
+Download the install and run it explicity:
+ - mkdir NATS_CLI
+ - curl -L -o nats-install.sh https://nats.io/install.sh
+ - This will create a shell script called "nats-install.sh" in the NATS_CLI directory.
+ - bash nats-install.sh
+
+*** This too did NOT work!
+# Step 1: Download the latest Linux 64-bit binary ZIP
+- wget https://github.com/nats-io/natscli/releases/latest/download/nats-linux-amd64.zip
+
+# Step 2: Unzip it
+- unzip nats-linux-amd64.zip
+
+# Step 3: Move the binary to /usr/local/bin
+- sudo mv nats /usr/local/bin/
+
+# Step 4: Verify it's installed
+nats --version
+
+*** This too did NOT work! Next suggestions are:
+Open this in your browser:
+
+https://github.com/nats-io/natscli/releases
+
+Then find the latest release (e.g., v0.2.3) and look under "Assets".
+
+You’ll likely see filenames like:
+
+nats-0.2.3-linux-amd64.zip
+nats-0.2.3-linux-arm64.zip
+etc.
+
+* Choose nats-0.2.3-amd64.deb
+- It will be in the Downloads folder.
+- Run: sudo dpkg -i nats-0.2.3-amd64.deb
+- If installation complains about missing dependencies then:
+  - Run: sudo apt-get install -f
+Then: nats --version
+
+==> Now create a durable queue:
+nats stream add ACME_STREAM --subjects ACME.Transactions.Confirms --storage file --retention limits --max-bytes 250MB
+
+It will be hanging on the terminal window asking for a confirmation:
+"? Replication [? for help] (1)".
+Ah, that prompt means the CLI is interactively asking you to specify the replication factor for the stream!
+JetStream streams support clustering with replicas for high availability.
+Since you are probably running a single server (not a cluster), you can just answer:
+
+==> Simple put 1 and press <Return>
+
+This means: "replicate stream data on 1 node" (i.e., no replication).
+
+How to avoid this interactive prompt?
+Add --replicas 1 option explicitly in your command, like:
+==> nats stream add ACME_STREAM --subjects ACME.Transactions.Confirms --storage file --retention limits --max-bytes 250MB --replicas 1
+
+
+Then the terminal window will say:
+? Replication 1
+? Discard Policy  [Use arrows to move, type to filter, ? for more help]
+  New
+> Old
+
+This is the next interactive prompt asking you to choose the Discard Policy for the stream.
+The options are:
+New: When the stream reaches its limits (like max bytes), new messages are rejected.
+Old: When the stream reaches its limits, old messages are discarded to make room for new ones.
+
+What to choose?
+If you want to always accept new messages by removing the oldest messages, choose Old (use arrow keys to select and press Enter).
+If you want to reject new messages when limits are hit, choose New.
+Typical choice
+Most people choose Old for a rolling log behavior, so the stream doesn't get full and block producers.
+
+Then it will says:
+ Replication 1
+? Discard Policy Old
+? Stream Messages Limit [? for help] (-1) 
+
+This prompt is asking you for the maximum number of messages the stream should hold.
+The default value -1 means no limit on the number of messages (only limited by max bytes or max age, etc.).
+
+What to enter?
+You can type a number (e.g., 100000) to limit the stream to hold up to 100,000 messages, or
+Just press Enter to accept the default (-1), meaning unlimited message count limit.
+Since you already set --max-bytes 250MB, it’s usually fine to leave the message count unlimited (-1).
+
+For full blown interactive script use:
+nats stream add ACME_STREAM \
+  --subjects ACME.Transactions.Confirms \
+  --storage file \
+  --retention limits \
+  --max-bytes 250MB \
+  --replicas 1 \
+  --discard old \
+  --max-msgs -1 \
+  --max-msgs-persubject -1
+
+
+Now it asks for: "? Per Subject Message Limit [? for help] (-1)
+That prompt is asking for the maximum number of messages per subject that the stream should retain.
+Default is -1 which means no limit per subject (subject-specific message count is unlimited, limited only by the overall stream limits).
+If you don’t want to limit per-subject messages, just press Enter to accept -1.
+Otherwise, enter a number to limit how many messages per subject the stream will keep.
+
+Then it asks for "Message TTL (-1)".
+This prompt is asking for the Message TTL (Time To Live) — the maximum age (in nanoseconds) that a message is retained before it expires.
+The default -1 means no expiration (messages are kept indefinitely, subject to other limits like max bytes or max messages).
+
+What to do?
+If you want messages to never expire, just press Enter to accept -1.
+If you want messages to expire after a certain time, enter that time in nanoseconds (e.g., for 1 hour, enter 3600000000000 ns).
+If you want no message expiration, just accept -1.
+
+Now it asks for "Max Message Size (-1)"
+This prompt is for the maximum size (in bytes) allowed for each message in the stream.
+Default -1 means no size limit per message (messages of any size are allowed, subject to other constraints).
+
+Then it asks for "Duplicate tracking time window" (2m02)
+This prompt asks for the duplicate tracking window duration — how long the stream should remember message IDs to detect and reject duplicates.
+Default is 2m0s (2 minutes).
+If you don’t want duplicate tracking, you can set it to 0s or just accept the default.
+This is for de-duplication.
+Code:
+natsMsgHeader_Set(msg, "Nats-Msg-Id", "your-unique-id");
+
+If JetStream sees a message with the same Nats-Msg-Id within the duplicate tracking window, it will drop the duplicate silently (or acknowledge it as already received).
+
+NOTE: If you don’t want duplicate tracking, you can set it to 0s or just accept the default.
+Then it says: "Allow message Roll-ups (y/N)"
+In JetStream, roll-up allows a publisher to replace all previous messages on a subject with a single roll-up message. It’s used in key-value stores or stateful streams, where only the latest value matters.
+
+You’d enable this if:
+You’re building a cache, key-value map, or last-known-state stream.
+You plan to publish with the special header:
+Code:
+natsMsgHeader_Set(msg, "Nats-Rollup", "sub")  // or "all"
+What should you do?
+Press N (or Enter) if you're using this stream as a durable message queue (normal pub/sub with history).
+Use Y only if your use-case involves overwriting state (not typical for transactional queues).
+
+NOTE: Then it asks for "Allow message deletetion (Y/n)"
+This means: Do you want to allow individual message deletion from the stream?
+What does this mean?
+If you say Yes (Y):
+
+You (or your application) can explicitly delete messages by sequence number or subject using the CLI or API.
+Useful for admin tools or data hygiene.
+If you say No (n):
+Messages will only be removed by JetStream’s retention policies (like max messages, max bytes, TTL, etc.).
+Slightly more efficient storage-wise and more secure if deletion shouldn't be allowed.
+
+if your goal is to simulate production behavior during testing (i.e., no manual deletions, just automatic cleanup via retention policies), then:
+
+* Say n (or type n and press Enter) at the prompt:
+
+NOTE: Next it asks: "Allow purging subjects or the entire stream (Y/n)"
+This means: asks whether to permit full or partial purge operations on the stream.
+What does "purge" mean?
+Purge deletes all messages in a stream or all messages for a specific subject.
+It's not selective like deleting by sequence number — it’s a bulk operation.
+Useful for cleanup during testing or for admin tools.
+
+Your Options:
+Y (Yes):
+You can manually purge the entire stream or per subject.
+Good for test environments or manual control.
+n (No):
+JetStream will retain messages only according to your retention settings.
+No manual full/subject purging allowed.
+Matches production-like constraints more closely.
+
+Output:
+Stream ACME_STREAM was created
+
+Information for Stream ACME_STREAM created 2025-06-09 15:48:38
+
+                Subjects: ACME.Transactions.Confirms
+                Replicas: 1
+                 Storage: File
+
+Options:
+
+               Retention: Limits
+         Acknowledgments: true
+          Discard Policy: Old
+        Duplicate Window: 2m0s
+              Direct Get: true
+       Allows Msg Delete: false
+            Allows Purge: true
+  Allows Per-Message TTL: false
+          Allows Rollups: false
+
+Limits:
+
+        Maximum Messages: unlimited
+     Maximum Per Subject: unlimited
+           Maximum Bytes: 250 MiB
+             Maximum Age: unlimited
+    Maximum Message Size: unlimited
+       Maximum Consumers: unlimited
+
+State:
+
+            Host Version: 2.11.3
+      Required API Level: 0 hosted at level 1
+                Messages: 0
+                   Bytes: 0 B
+          First Sequence: 0
+           Last Sequence: 0
+        Active Consumers: 0
+
+Summary of Current Stream Setup:
+Storage Type: File-backed (saved to the directory you configured).
+Retention: Based on limits (250 MiB max).
+Ack Required: Yes (for durability).
+Discard Policy: Oldest messages will be removed when full.
+Deletes Allowed: No (message deletion is disabled).
+Purge Allowed:  Yes (entire stream or subject can be purged via CLI).
+Message TTL: ∞ (not set, messages won’t expire by age).
+Duplicates Tracked: 2 minutes (messages with same Msg-Id are rejected within 2 minutes).
+
+Your script should use now:
+nats stream add ACME_STREAM \
+  --subjects "ACME.Transactions.Confirms" \
+  --storage file \
+  --retention limits \
+  --max-bytes 262144000 \
+  --discard old \
+  --replicas 1 \
+  --dupe-window 2m \
+  --deny-delete \
+  --allow-purge
+
+Summary:
+--subjects "ACME.Transactions.Confirms" – stream binds to that subject.
+--storage file – use file-backed persistence (as configured in your nats-server.conf).
+--retention limits – stream retains messages based on configured limits (e.g., --max-bytes).
+--max-bytes 262144000 – 250 MiB limit (250 × 1024 × 1024 = 262144000).
+--discard old – discard oldest messages when stream is full.
+--replicas 1 – single replica (standalone mode).
+--dupe-window 2m – duplicate message ID tracking window.
+--deny-delete – disables message deletion via consumers or API.
+--allow-purge – allows purging the whole stream or by subject.
+
+NOTE: To delete this queue and rerun it, first use the command:
+nats stream rm ACME_STREAM
+
+NOTE: To list all streams (queue) run:
+nats stream ls
+
+Example:
+nats stream ls
+╭──────────────────────────────────────────────────────────────────────────────────╮
+│                                      Streams                                     │
+├─────────────┬─────────────┬─────────────────────┬──────────┬──────┬──────────────┤
+│ Name        │ Description │ Created             │ Messages │ Size │ Last Message │
+├─────────────┼─────────────┼─────────────────────┼──────────┼──────┼──────────────┤
+│ ACME_STREAM │             │ 2025-06-09 15:48:38 │ 0        │ 0 B  │ never        │
+╰─────────────┴─────────────┴─────────────────────┴──────────┴──────┴──────────────╯
+
+
+List all subjects handled by a stream:
+nats stream info ACME_STREAM --json | jq '.config.subjects'
+
+NOTE: A stream can have multiple subjects:
+ACME.Transactions.Confirms
+ACME.Transactions.Payments
+ACME.Orders.*
+
+If you configure a stream with these subjects, any message published to any matching subject gets stored in that stream.
+If your stream ACME_STREAM was created with only one subject ACME.Transactions.Confirms, then it will only capture messages on that subject.
+Summary:
+Stream = storage container for messages from one or more subjects
+Subjects = the message channels/topics that the stream listens to
+A stream can have 1 or many subjects.
+
+The stream name and the subject name are actually independent in JetStream.
+
+What matters is the subject you publish to — not the stream name itself.
+When you create a stream, you tell JetStream which subject(s) it should capture and store.
+For example, if your stream is called ACME_STREAM and it is configured to capture subject ACME.Transactions.Confirms, then only messages published to the subject ACME.Transactions.Confirms will go into that stream.
+The stream name (ACME_STREAM) is just an identifier for managing the stream (listing, deleting, etc.), not part of the subject you publish to.
+
+=============================================================
+Salient Points:
+(1) One first creates a stream using the "nats stream add" command.
+(2) To ensure integrity of which subjects to use, one can also specify subjects that are allowable. This too is specified in the "nats stream add" command.
+(3) Publisher of course cannot use wildcards during publication. Only subscribes do.
+(4) There are 2 types of publication: (a) A simple one, (b) A more advanced one for de-duplication (filtering out duplicates using a unique message sequencer identifier). 
+(5) Subscribes can receive durable messages using asynchronous notification via a different thread, or poll for such messages synschronously. The asynchronous one is called a "Push consumer", and the synchronous one is called a "Pull Consumer". A pull consumer can ask for batched deliery of messages at a time. When configuring a filter one needs to specify pull vs push consumer.
+(6) When you add a subscriber you use a filter in the CLI command. Each filter has a logical name and you use thatfor subscribing.
+
+
+Your salient points are well summarized! Here are a few tweaks and clarifications to make them clearer and more precise:
+
+(1) Create a Stream:
+You first create a stream using the nats stream add CLI command (or programmatically via the JetStream API). This stream defines storage, retention, subjects, and other policies.
+
+(2) Specify Allowed Subjects:
+When creating a stream, you specify exactly which subjects it will accept. This restricts publishers to only those subjects under that stream, ensuring message integrity and routing.
+
+(3) Publisher Subject Usage:
+Publishers must publish to specific, exact subjects (no wildcards). Wildcards only apply to subscribers to listen to multiple matching subjects.
+
+(4) Types of Publication:
+(a) Simple publish: Just send a message on a subject.
+(b) Advanced publish: Includes features like message ID for de-duplication, which helps JetStream filter out duplicate messages automatically.
+
+(5) Subscriber Modes:
+Subscribers can receive messages either:
+(a) Asynchronously: via a callback or separate thread that handles messages as they arrive.
+(b) Synchronously: by polling (pull mode) to fetch messages when ready
+
+NOTE: How to set up a push consumer via CLI?
+(a) Run: nats consumer add NEWS TechConsumer --filter News.Tech --target News.Tech.Consumer --ack explicit --deliver all --max-deliver 100 --flow-control --heartbeat 30s --defaults
+
+(b) Then run the command: nats sub News.Tech.Consumer --ack
+(c) From another window run: ats pub News.Tech "Hello, Tech News!"
+(d) In the first window you should see the test message:
+[#4] Received JetStream message: consumer: NEWS > TechConsumer / subject: News.Tech / delivered: 1 / consumer seq: 1 / stream seq: 1
+Hello, Tech News!
+
+NOTE: How to tell it is a push or pull consumer?
+Run the command: nats consumer info NEWS TechConsumer -j
+Output: If the output has a non empty string for "deliver_subject" then it is a PUSH consumer!
+{
+  "stream_name": "NEWS",
+  "name": "TechConsumer",
+  "config": {
+    "ack_policy": "explicit",
+    "ack_wait": 30000000000,
+    "deliver_policy": "all",
+    "deliver_subject": "News.Tech.Consumer",
+    "durable_name": "TechConsumer",
+    "name": "TechConsumer",
+    "filter_subject": "News.Tech",
+    "flow_control": true,
+    "idle_heartbeat": 30000000000,
+    "max_ack_pending": 1000,
+    "max_deliver": 100,
+    "replay_policy": "instant",
+    "num_replicas": 0,
+    "metadata": {
+      "_nats.level": "1",
+      "_nats.req.level": "0",
+      "_nats.ver": "2.11.3"
+    },
+    "pause_until": "0001-01-01T00:00:00Z"
+  },
+  "created": "2025-06-09T22:29:23.397534447Z",
+  "delivered": {
+    "consumer_seq": 1,
+    "stream_seq": 1,
+    "last_active": "2025-06-09T22:31:33.199666756Z
+
+
+=============================================================
+NOTES on various types of publication.
+
+The NATS C client provides two main ways to publish with JetStream:
+
+(1) Simple natsJetStream_Publish() call on the JetStream context, like in the publisher example I gave earlier:
+- You pass subject and payload directly.
+- It’s a straightforward, high-level API call.
+- Handles default JetStream publishing parameters internally.
+- Preferred for simple, common use cases where you just want to send messages reliably.
+
+(2) Using the lower-level natsJetStream_PublishMsg() with a natsMsg structure, like in some advanced examples:
+You create a natsMsg object yourself.
+
+- Allows setting advanced headers, message IDs, custom reply subjects, etc.
+- Necessary if you want to specify extra metadata like Msg-Id for deduplication, or set specific publish options.
+- Preferred when you need full control over the message details or want to do things like message deduplication or customized acks.
+
+Which one to use?
+(1) For typical use cases, just using the simple natsJetStream_Publish() is easier and recommended.
+(2) For advanced use cases (e.g., setting message ID for deduplication, adding custom headers, or specialized publish options), create a natsMsg and use natsJetStream_PublishMsg().
+
+Example with message ID (deduplication) using natsMsg:
+natsMsg *msg = NULL;
+const char *subject = "News.Tech";
+const char *data = "Hello with MsgID";
+
+natsMsg_Create(&msg, subject, NULL, (const void*)data, strlen(data));
+
+// Set the message ID header for deduplication
+natsMsgHeader_Set(&msg->hdr, "Nats-Msg-Id", "unique-message-id-123");
+
+s = natsJetStream_PublishMsg(js, msg, NULL);
+
+Example: Advanced JetStream publish with message ID in C
+
+#include <nats/nats.h>
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+    natsStatus s;
+    natsConnection *conn = NULL;
+    natsJetStreamContext *js = NULL;
+    natsMsg *msg = NULL;
+    const char *subject = "News.Tech";
+    const char *payload = "This is a test message with MsgID";
+
+    // Connect to NATS server
+    s = natsConnection_ConnectTo(&conn, NATS_DEFAULT_URL);
+    if (s != NATS_OK) {
+        printf("Failed to connect: %s\n", natsStatus_GetText(s));
+        return 1;
+    }
+
+    // Create JetStream context
+    s = natsConnection_CreateJetStreamContext(&js, conn);
+    if (s != NATS_OK) {
+        printf("Failed to create JetStream context: %s\n", natsStatus_GetText(s));
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    // Create a new natsMsg
+    s = natsMsg_Create(&msg, subject, NULL, (const void*)payload, (int)strlen(payload));
+    if (s != NATS_OK) {
+        printf("Failed to create message: %s\n", natsStatus_GetText(s));
+        natsJetStream_Destroy(js);
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    // Set unique message ID header for deduplication
+    s = natsMsgHeader_Set(&msg->hdr, "Nats-Msg-Id", "unique-message-id-12345");
+    if (s != NATS_OK) {
+        printf("Failed to set message header: %s\n", natsStatus_GetText(s));
+        natsMsg_Destroy(msg);
+        natsJetStream_Destroy(js);
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    // Publish the message
+    s = natsJetStream_PublishMsg(js, msg, NULL);
+    if (s == NATS_OK) {
+        printf("Published message with MsgID\n");
+    } else {
+        printf("Failed to publish message: %s\n", natsStatus_GetText(s));
+    }
+
+    // Cleanup
+    natsMsg_Destroy(msg);
+    natsJetStream_Destroy(js);
+    natsConnection_Destroy(conn);
+    nats_Close();
+
+    return 0;
+}
+
+Key points:
+We manually create a natsMsg with natsMsg_Create().
+We add a header "Nats-Msg-Id" for deduplication.
+Use natsJetStream_PublishMsg() to send the message.
+Always destroy/free the message and other objects after use.
+
+
+EXAMPLE: Here’s a JetStream subscriber example in C that subscribes to a subject (like "News.Tech"), receives messages, and explicitly acks them — using the advanced API with natsMsg and natsSubscription:
+
+#include <nats/nats.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static void
+onMsg(natsConnection *nc, natsSubscription *sub, natsMsg *msg, void *closure)
+{
+    printf("Received message on subject '%s': %.*s\n",
+           natsMsg_GetSubject(msg),
+           natsMsg_GetDataLength(msg),
+           natsMsg_GetData(msg));
+
+    // Acknowledge the message (important for JetStream)
+    natsStatus s = natsMsg_Ack(msg);
+    if (s != NATS_OK)
+        printf("Failed to ack message: %s\n", natsStatus_GetText(s));
+
+    natsMsg_Destroy(msg);
+}
+
+int main()
+{
+    natsStatus s;
+    natsConnection *conn = NULL;
+    natsJetStreamContext *js = NULL;
+    natsSubscription *sub = NULL;
+
+    const char *subject = "News.Tech";
+
+    // Connect to NATS server
+    s = natsConnection_ConnectTo(&conn, NATS_DEFAULT_URL);
+    if (s != NATS_OK) {
+        printf("Failed to connect: %s\n", natsStatus_GetText(s));
+        return 1;
+    }
+
+    // Create JetStream context
+    s = natsConnection_CreateJetStreamContext(&js, conn);
+    if (s != NATS_OK) {
+        printf("Failed to create JetStream context: %s\n", natsStatus_GetText(s));
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    // Subscribe asynchronously with a callback
+    s = natsJetStreamContext_Subscribe(&sub, js, subject, onMsg, NULL);
+    if (s != NATS_OK) {
+        printf("Failed to subscribe: %s\n", natsStatus_GetText(s));
+        natsJetStream_Destroy(js);
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    printf("Listening on subject '%s'...\n", subject);
+
+    // Run event loop (in a real app, this might be more complex)
+    // For demo, sleep for 30 seconds to receive messages
+    nats_Sleep(30000);
+
+    // Cleanup
+    natsSubscription_Destroy(sub);
+    natsJetStream_Destroy(js);
+    natsConnection_Destroy(conn);
+    nats_Close();
+
+    return 0;
+}
+
+This example uses an asynchronous subscription with a callback.
+The callback onMsg must ack messages (natsMsg_Ack) to inform JetStream the message is processed.
+nats_Sleep(30000) is just a simple way to keep the program alive to receive messages for 30 seconds.
+
+Example:
+Here’s a synchronous JetStream subscriber example in C — it pulls messages on the subject "News.Tech" and explicitly acks them:
+
+#include <nats/nats.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    natsStatus s;
+    natsConnection *conn = NULL;
+    natsJetStreamContext *js = NULL;
+    natsSubscription *sub = NULL;
+    natsMsg *msg = NULL;
+
+    const char *subject = "News.Tech";
+
+    // Connect to NATS server
+    s = natsConnection_ConnectTo(&conn, NATS_DEFAULT_URL);
+    if (s != NATS_OK) {
+        printf("Failed to connect: %s\n", natsStatus_GetText(s));
+        return 1;
+    }
+
+    // Create JetStream context
+    s = natsConnection_CreateJetStreamContext(&js, conn);
+    if (s != NATS_OK) {
+        printf("Failed to create JetStream context: %s\n", natsStatus_GetText(s));
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    // Subscribe synchronously to the subject
+    s = natsJetStreamContext_SubscribeSync(&sub, js, subject, NULL);
+    if (s != NATS_OK) {
+        printf("Failed to subscribe sync: %s\n", natsStatus_GetText(s));
+        natsJetStream_Destroy(js);
+        natsConnection_Destroy(conn);
+        return 1;
+    }
+
+    printf("Waiting for messages on subject '%s'...\n", subject);
+
+    // Receive 10 messages or until timeout (5 seconds)
+    for (int i = 0; i < 10; i++) {
+        s = natsSubscription_NextMsg(&msg, sub, 5000);
+        if (s == NATS_OK) {
+            printf("Received message: %.*s\n",
+                   natsMsg_GetDataLength(msg),
+                   natsMsg_GetData(msg));
+
+            // Ack message explicitly for JetStream
+            s = natsMsg_Ack(msg);
+            if (s != NATS_OK)
+                printf("Failed to ack message: %s\n", natsStatus_GetText(s));
+
+            natsMsg_Destroy(msg);
+        }
+        else if (s == NATS_TIMEOUT) {
+            printf("No message received in 5 seconds, exiting.\n");
+            break;
+        }
+        else {
+            printf("Error receiving message: %s\n", natsStatus_GetText(s));
+            break;
+        }
+    }
+
+    // Cleanup
+    natsSubscription_Destroy(sub);
+    natsJetStream_Destroy(js);
+    natsConnection_Destroy(conn);
+    nats_Close();
+
+    return 0;
+}
+
+How this differs from the async version:
+This waits synchronously for messages with a timeout (natsSubscription_NextMsg).
+You control message processing loop explicitly.
+You still must ack messages to JetStream.
+Useful for simpler or polling-style apps.
+
+
+
+=============================================================
+Durable Message Publisher C code
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <nats/nats.h>
+
+int main() {
+    natsConnection      *conn = NULL;
+    natsOptions         *opts = NULL;
+    natsStatus           s;
+    natsJetStream       *js = NULL;
+    jsStreamConfig       streamCfg;
+    const char          *streamName = "MY_STREAM";
+    const char          *subject = "my.subject";
+
+    // 1. Connect to NATS
+    s = natsConnection_ConnectTo(&conn, NATS_DEFAULT_URL);
+    if (s != NATS_OK) {
+        printf("Error: %s\n", natsStatus_GetText(s));
+        return 1;
+    }
+
+    // 2. Create JetStream context
+    s = natsConnection_JetStream(&js, conn, NULL);
+    if (s != NATS_OK) {
+        printf("Error creating JetStream context: %s\n", natsStatus_GetText(s));
+        goto cleanup;
+    }
+
+    // 3. Configure and add stream (if not exists)
+    memset(&streamCfg, 0, sizeof(streamCfg));
+    streamCfg.name = (char*)streamName;
+    streamCfg.subjects = (char**)&subject;
+    streamCfg.subjectsLen = 1;
+    streamCfg.storage = js_FileStorage;  // Persist to disk
+    streamCfg.retention = js_LimitsPolicy;
+
+    s = nats_JetStream_AddStream(js, &streamCfg, NULL);
+    if (s != NATS_OK && s != NATS_ERR_STREAM_NAME_ALREADY_IN_USE) {
+        printf("Error creating stream: %s\n", natsStatus_GetText(s));
+        goto cleanup;
+    }
+
+    // 4. Send raw byte message
+    const uint8_t payload[] = { 0xDE, 0xAD, 0xBE, 0xEF };
+    natsMsg *msg = NULL;
+    natsMsg *ack = NULL;
+
+    s = natsMsg_Create(&msg, subject, NULL, (const char*)payload, sizeof(payload));
+    if (s != NATS_OK) {
+        printf("Error creating message: %s\n", natsStatus_GetText(s));
+        goto cleanup;
+    }
+
+    s = nats_JetStream_PublishMsg(js, msg, &ack);
+    if (s == NATS_OK) {
+        printf("Published message to %s (seq: %" PRIu64 ")\n",
+               subject, jsMsg_GetMeta(ack)->Sequence.Stream);
+    } else {
+        printf("Error publishing message: %s\n", natsStatus_GetText(s));
+    }
+
+cleanup:
+    natsMsg_Destroy(msg);
+    natsMsg_Destroy(ack);
+    natsJetStream_Destroy(js);
+    natsConnection_Destroy(conn);
+    nats_Close();
+
+    return (s == NATS_OK ? 0 : 1);
+}
+
+
+=============================================================
+Sample Configuration:
+So give me a one CLI command for Stream Name "News", with allowable subjects "News.Headlines", "News.Sports", "News.Sports.Football", and "News.Tech". I want to publish using logical names, instead of subject names. And I want subscribers to use "News.Headlines", all news for Sports, or a specific News for "Football" and also anything related to "News.Tech"
+
+nats stream add News \
+  --subjects News.Headlines,News.Sports,News.Sports.Football,News.Tech \
+  --storage file \
+  --retention limits \
+  --max-bytes 262144000 \
+  --discard old \
+  --replicas 1 \
+  --dupe-window 2m \
+  --deny-delete \
+  --allow-purge
+
+Explanation for subscribers:
+To subscribe to all headlines:
+nats consumer add News HeadlinesConsumer --filter News.Headlines
+
+To subscribe all sports news, including football:
+nats consumer add News SportsConsumer --filter 'News.Sports.>'
+
+To subscribe only football news
+nats consumer add News FootballConsumer --filter News.Sports.Football
+
+To subscrible to all new Tech news:
+nats consumer add News TechConsumer --filter News.Tech
+
+NOTE: Notes on publishing:
+Publishers will publish only to the exact subjects, e.g. News.Headlines, News.Sports.Football, etc.
+You cannot publish using wildcards; you use exact subject names.
+Logical names like "Headlines" or "Sports" are really just subject suffixes under the stream News.
+
+NOTE: Notes on Wildcarding:
+
+(A) (single-level wildcard)
+Matches exactly one token (one subject segment) at that position.
+Tokens are the parts separated by . in the subject.
+Example:
+Subject: News.*.Football
+Matches:
+News.Sports.Football
+News.Local.Football
+Does NOT match:
+News.Football (missing one token in the middle)
+News.Sports.Pro.Football (extra token)
+
+(B) (multi-leve wildcard)
+Matches one or more tokens starting at that position, including zero tokens if used at the end.
+Only allowed at the end of the subject.
+Example:
+Subject: News.Sports.>
+Matches:
+News.Sports
+News.Sports.Football
+News.Sports.Football.Pro
+Subject: News.>
+Matches:
+News
+News.Tech
+News.Sports.Football
+etc.
+

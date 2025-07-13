@@ -1,0 +1,96 @@
+
+--------------------------------------------------------------
+(1) GO integration with C : First Version
+
+(1) Attached is first version of the GO library and test program.
+The GO library is in a file called ndw.go.
+The test code is in a file called pub_sub.go
+At this pointer we have only 1 test code: pub_sub.go (This is NATS asynchronous message handling).
+
+--------------------------------------------------------------
+(2) Total Number of GO Test to be developed:
+
+- In general, we will have 5 types of test code:
+(1) pub_sub  <-- NATS publish and asynchronous message callback.
+(2) syncpoll <-- NATS publish and synchronously poll for messages.
+(3) jspush   <-- JetStream publish on durable subject and asynchronous message callback.
+(4) jspoll   <-- JetStream publish on durable subject and synchronous poll for messages.
+(5) qasync   <-- NATS or JetStream publish with asynchronous callback, but messages go into a queue for polling. (Advanced feature in progress.) 
+
+--------------------------------------------------------------
+(3) GO test pub_sub.go result:
+
+(a) The GO test code pub_sub.go was able to do 10 million messages, each of size 1024 bytes, on 1 NATS connection and 1 Topic.
+(b) Then GO test code pub_sub.go was able to use 2 NATS Connection, with 2 Topics on one connection, and one Topic on another connection, for a total of 1 million messages, each of size 1024 bytes, for a total of 3 million messages across the 3 Topics and 2 NATS connection.
+
+--------------------------------------------------------------
+(4) GO test code directory hierarchy
+
+In GO it is kind of tricky to create source code as each app with a main() function must belong in one folder if they are to use a shared GO library like ndw.go
+So for the tests we will need to create 6 folders.
+(a) ndw/ndw.go            <-- The GO library that interfaces with C code.
+(a) pub_sub/pub_sub.go    <--- The pub_sub test code. 
+(b) syncpoll/syncpoll.go  <-- The syncpoll test code.
+(c) jspush                <--- The JetStream async callback program (JetStream PUSH)
+(d) jspoll                <--- The JetStream poll test code (JetStream PULL)
+(e) qasync                <--  Async to Queue propagation test code.
+
+--------------------------------------------------------------
+(5) ndw/ndw.go - This is GO code (library) that binds GO to C.
+
+- The goal is that ndw/ndw.go has all the C bindings and shields the application from having to declare C statements.
+- This is key!
+- Any changes to the C code now means we have to change only ndw/ndw.go and not application code, barring new functions or variables being introduced.
+
+- If you go to ndw.go you will see at the top of the file how it uses:
+(a) C type comments to include C header files and it ends with import "C".
+(b) Then it uses extern void ndw_SetGoMessageHandler(ndw_GOAsyncMsgHandler handler) <-- This binds a GO callback function into C, so C code can callback into GO code for asynchronous message.
+
+--------------------------------------------------------------
+(6) Per Thread Data Structure Usage
+
+- Both GO and C needs to do this!
+- The most demanding thing is handling asynchronous callback whether be it in C or in GO.
+- This cannot be emphasized enough!
+- This is why in C we had to use per thread data structure, as NATS C Client Library uses its own internal thread to callback into the C code.
+- And now C code will have to use the same thread to callback into GO code.
+- Note that this is NOT our creation, but NATS C client code delivers asynchronous messages in different background threads.
+- So there is no way around it.
+
+--------------------------------------------------------------
+(7) The Real Complexity!
+
+- So what is the complexity in GO code? This is the hardest part.
+- GO has various lightweight threads and there MIGHT NOT be any guarantee that the GO callback has happened in the SAME thread as the C did the callback!
+
+- So what one has to do is when ndw.go receives an asynchronous message it has to make sure it does NOT switch to a different thread?
+- We have to use 2 funtion calls in ndw.go when asynchronous messages come in background threads:
+===>    runtime.LockOSThread()
+===>    defer runtime.UnlockOSThread()
+
+- Additionally, we do no want the GO application code to use the above complexity of locking down threads.
+- Hence we put all C bindings and such threading complexity into ndw.go source file.
+- But the main application that initializes the messaging system ALSO has to ensure it does not invoke functions that can swithc threads.
+- So we had to wrap the the main Go function into a function in ndw.go as "func RunNDWApp(appLogic func() int) int".
+- The user's main function would look like:
+unc main() {
+    os.Exit(ndw.RunNDWApp(appMain))
+}
+
+--------------------------------------------------------------
+(8) SUMMARY:
+In summary, it must be understood that:
+(a) We have our first version of GO integration with C using NATS asynchronous callback.
+(b) All interactions with C code will need to be done in ndw.go
+(c) Since NATS sends asynchronous messages in background thread, C code has per thread data, and GO callback code also must use that same thread, and this too is enforced in ndw.go.
+(d) User Application GO code would have to call functions into ndw.go
+(e) When C code changes we will release new version of ndw.go code, shielding users to make changes.
+(f) Of course if new functions are introduced in C code, then ndw.go code will change, and app code will need to use new functions introduced.
+(g) We need to write the other GO test code.
+(h) We will need to write a PDF document on GO integration with the C code.
+
+--------------------------------------------------------------
+
+
+
+

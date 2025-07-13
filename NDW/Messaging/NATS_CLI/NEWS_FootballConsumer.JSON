@@ -1,0 +1,9 @@
+{
+  "name": "SportsConsumer",
+  "filter_subject": "News.Sports.>",
+  "deliver_subject": "News.Sports.Consumer",
+  "ack_policy": "explicit",
+  "deliver_policy": "all",
+  "max_deliver": -1
+}
+
