@@ -55,7 +55,7 @@ extern "C"
  * @brief This is the default header's size.
  * All code must assert that this is valid when sending a message and receving it.
  */
-#define NDW_MSGHEADER1_V1_LE_MSG_SIZE 32
+#define NDW_MSGHEADER1_V1_LE_MSG_SIZE 40
 
 /**
  * @struct ndw_MsgHeader1_T
@@ -66,6 +66,7 @@ extern "C"
  *  EXACTLY matches the size of the header. If your compilier cannot support it then 
  *  implement it with byte manipulation techiques.
  */
+
 typedef struct ndw_MsgHeader1
 {
     UCHAR_T header_number;      // Header Identifier.
@@ -76,20 +77,23 @@ typedef struct ndw_MsgHeader1
     UCHAR_T domain;             // Domain (It is a group of Connections and Topics).
     UCHAR_T priority;           // Message Priority.
     UCHAR_T flags;              // Message flags. 8 bits and hence 8 flags value possible.
-    SHORT_T source_id;          // This is Application identifier who sent the message.
-    SHORT_T topic_id;           // This is the logical Topic identifier. Topic encapsulates both pub and sub operations.
-    SHORT_T correlation_id;     // Message correlation identifier.
-    SHORT_T tenant_id;          // Message tentant identifier. Typically used for security.
-    SHORT_T payload_size;       // The size of the user data (payload). Do not add header size to it.
+
     SHORT_T message_id;         // Message Identifiery or Message Type.
     SHORT_T message_sub_id;     // Message Sub-Identifier for further subdivision within Message Identifier.
+    INT_T   payload_size;       // The size of the user data (payload). Do not add header size to it.
+    ULONG_T correlation_id;     // Message correlation identifier.
     ULONG_T timestamp;          // Timestamp. Should be in UTC format.
+    SHORT_T source_id;          // This is Application identifier who sent the message.
+    SHORT_T tenant_id;          // Message tentant identifier. Typically used for security.
+    SHORT_T topic_id;           // This is the logical Topic identifier. Topic encapsulates both pub and sub operations.
+    SHORT_T padding;            // Two bytes padding for mutiple of double word size for header
+
 } ndw_MsgHeader1_T;
 
 /**
  * If you have used a C struct to use as a message header you better make sure the compiler created the exact size.
  */
-_Static_assert(sizeof(ndw_MsgHeader1_T) == 32, "Size of default header structure must be 32 bytes as agreed");
+_Static_assert(sizeof(ndw_MsgHeader1_T) == NDW_MSGHEADER1_V1_LE_MSG_SIZE, "Mismatch in Size of default header structure");
 
 
 /**

@@ -3,7 +3,7 @@
 #define _TESTHARNESS_H
 
 #include "NDW_Essentials.h"
-#include <cJSON.h>
+#include <cjson/cJSON.h>
 
 extern INT_T test_test_initialize(int argc, char** argv);
 extern INT_T test_initialize(int argc, char** argv);

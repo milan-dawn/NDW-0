@@ -90,7 +90,7 @@ ndw_MsgHeader1_Print(int header_id, ULONG_T* pHeader)
     NDW_LOG("  flags: %d (offset: %zu)\n", ph->flags, offsetof(ndw_MsgHeader1_T, flags));
     NDW_LOG("  source_id: %d (offset: %zu)\n", ph->source_id, offsetof(ndw_MsgHeader1_T, source_id));
     NDW_LOG("  topic_id: %d (offset: %zu)\n", ph->topic_id, offsetof(ndw_MsgHeader1_T, topic_id));
-    NDW_LOG("  correlation_id: %d (offset: %zu)\n", ph->correlation_id, offsetof(ndw_MsgHeader1_T, correlation_id));
+    NDW_LOG("  correlation_id: %lu (offset: %zu)\n", ph->correlation_id, offsetof(ndw_MsgHeader1_T, correlation_id));
     NDW_LOG("  tenant_id: %d (offset: %zu)\n", ph->tenant_id, offsetof(ndw_MsgHeader1_T, tenant_id));
     NDW_LOG("  payload_size: %d (offset: %zu)\n", ph->payload_size, offsetof(ndw_MsgHeader1_T, payload_size));
     NDW_LOG("  message_id: %d (offset: %zu)\n", ph->message_id, offsetof(ndw_MsgHeader1_T, message_id));
@@ -172,7 +172,7 @@ ndw_MsgHeader1_Compare(int header_id, ULONG_T* pHeader1, ULONG_T* pHeader2)
     }
 
     if (ph1->correlation_id != ph2->correlation_id) {
-        NDW_LOGERR("*** ERROR: correlation_id mismatch (%d != %d)\n", ph1->correlation_id, ph2->correlation_id);
+        NDW_LOGERR("*** ERROR: correlation_id mismatch (%lu != %lu)\n", ph1->correlation_id, ph2->correlation_id);
         return -11;
     }
 
@@ -267,7 +267,7 @@ ndw_MsgHeader1_SetOutMsgFields(ndw_OutMsgCxt_T* cxt)
     ph->flags = (UCHAR_T) cxt->flags;
     ph->source_id = (SHORT_T) cxt->app_id;
     ph->topic_id = (SHORT_T) cxt->topic->topic_unique_id;
-    ph->correlation_id = (SHORT_T) cxt->correlation_id;
+    ph->correlation_id = cxt->correlation_id;
     ph->tenant_id = (SHORT_T) cxt->tenant_id;
     ph->payload_size = cxt->message_size;
     ph->message_id = (SHORT_T) cxt->message_id;
@@ -323,14 +323,12 @@ ndw_MsgHeader1_ConvertToLE(UCHAR_T *header_address)
     // Convert SHORT_T fields to Little Endian
     uint16_t source_id_le = htole16(src_header->source_id);
     uint16_t topic_id_le = htole16(src_header->topic_id);
-    uint16_t correlation_id_le = htole16(src_header->correlation_id);
     uint16_t tenant_id_le = htole16(src_header->tenant_id);
     uint16_t message_id_le = htole16(src_header->message_id);
     uint16_t message_sub_id_le = htole16(src_header->message_sub_id);
 
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, source_id), &source_id_le, sizeof(source_id_le));
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, topic_id), &topic_id_le, sizeof(topic_id_le));
-    memcpy(le_msg + offsetof(ndw_MsgHeader1_T, correlation_id), &correlation_id_le, sizeof(correlation_id_le));
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, tenant_id), &tenant_id_le, sizeof(tenant_id_le));
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, message_id), &message_id_le, sizeof(message_id_le));
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, message_sub_id), &message_sub_id_le, sizeof(message_sub_id_le));
@@ -340,7 +338,9 @@ ndw_MsgHeader1_ConvertToLE(UCHAR_T *header_address)
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, payload_size), &payload_size_le, sizeof(payload_size_le));
 
         // Convert ULONG_T field to Little Endian (assuming 64-bit)
+    ULONG_T correlation_id_le = htole64(src_header->correlation_id);
     ULONG_T timestamp_le = htole64(src_header->timestamp);
+    memcpy(le_msg + offsetof(ndw_MsgHeader1_T, correlation_id), &correlation_id_le, sizeof(correlation_id_le));
     memcpy(le_msg + offsetof(ndw_MsgHeader1_T, timestamp), &timestamp_le, sizeof(timestamp_le));
 
     // Overwrite parameter header.
@@ -400,21 +400,18 @@ ndw_MsgHeader1_ConvertFromLE(UCHAR_T *src, UCHAR_T* dest)
     // Convert SHORT_T fields from Little Endian
     uint16_t source_id_le;
     uint16_t topic_id_le;
-    uint16_t correlation_id_le;
     uint16_t tenant_id_le;
     uint16_t message_id_le;
     uint16_t message_sub_id_le;
 
     memcpy(&source_id_le, le_msg + offsetof(ndw_MsgHeader1_T, source_id), sizeof(source_id_le));
     memcpy(&topic_id_le, le_msg + offsetof(ndw_MsgHeader1_T, topic_id), sizeof(topic_id_le));
-    memcpy(&correlation_id_le, le_msg + offsetof(ndw_MsgHeader1_T, correlation_id), sizeof(correlation_id_le));
     memcpy(&tenant_id_le, le_msg + offsetof(ndw_MsgHeader1_T, tenant_id), sizeof(tenant_id_le));
     memcpy(&message_id_le, le_msg + offsetof(ndw_MsgHeader1_T, message_id), sizeof(message_id_le));
     memcpy(&message_sub_id_le, le_msg + offsetof(ndw_MsgHeader1_T, message_sub_id), sizeof(message_sub_id_le));
 
     dest_header->source_id = le16toh(source_id_le);
     dest_header->topic_id = le16toh(topic_id_le);
-    dest_header->correlation_id = le16toh(correlation_id_le);
     dest_header->tenant_id = le16toh(tenant_id_le);
     dest_header->message_id = le16toh(message_id_le);
     dest_header->message_sub_id = le16toh(message_sub_id_le);
@@ -425,8 +422,11 @@ ndw_MsgHeader1_ConvertFromLE(UCHAR_T *src, UCHAR_T* dest)
     dest_header->payload_size = le32toh(payload_size_le);
 
     // Convert ULONG_T field from Little Endian (assuming 64-bit)
+    ULONG_T correlation_id_le;
     ULONG_T timestamp_le;
+    memcpy(&correlation_id_le, le_msg + offsetof(ndw_MsgHeader1_T, correlation_id), sizeof(correlation_id_le));
     memcpy(&timestamp_le, le_msg + offsetof(ndw_MsgHeader1_T, timestamp), sizeof(timestamp_le));
+    dest_header->correlation_id = le64toh(correlation_id_le);
     dest_header->timestamp = le64toh(timestamp_le);
 
     return 0;

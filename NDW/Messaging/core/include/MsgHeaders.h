@@ -157,7 +157,7 @@ typedef struct ndw_OutMsgCxt
     INT_T encoding_format;          // Message body encoding format type.
     INT_T priority;                 // Message priority, if supported by underlying messaging vendor.
     INT_T flags;                    // Typically a bitmask to use to set flags as deemed by the application.
-    INT_T correlation_id;           // Correlation identifer for request response or even for putting classification for messages.
+    ULONG_T correlation_id;         // Correlation identifer for request response or even for putting classification for messages.
     INT_T tenant_id;                // Typically used for security like ACLs (Access Control List).
     INT_T message_id;               // Message Identifier.
     INT_T message_sub_id;           // Message Sub Identifier.
