@@ -31,6 +31,13 @@ typedef struct poll_function_ptr_data
     const char* function_name;
 } poll_function_ptr_data_T;
 
+typedef struct getresreq_function_ptr_data
+{
+    subscribe_function function;
+    poll_function function;
+    const char* function_name;
+} getresreq_function_ptr_data_T;
+
 typedef struct poll_commit_function_ptr_data
 {
     poll_commit_function function;
@@ -65,7 +72,7 @@ typedef struct AppTopic {
     bool Subscribe_Enabled;
     bool Publish;
     bool Subscribe;
-    int poll_timeout_us;
+    int  poll_timeout_us;
 
     PublishType PublishType;
     SubscribeType SubscribeType;

@@ -93,6 +93,12 @@ static inline bool NDW_IS_NDW_INIT_THREAD(pthread_t id) { return (id == pthread_
 extern CHAR_T* ndw_alloc_align(size_t size);
 
 /**
+* @brief Dump backtrace on fatal error for DEBUG build
+* @param[in] error type
+*/
+extern void ndw_exit(int status);
+
+/**
  * @struct NDW_TestArgs_T
  * @brief Holds (stress) testing parameters.
  *

@@ -37,6 +37,18 @@
         "PublishType": "NATS",
         "SubscribeType": "NATSAsync",
         "PollTimeoutus" : 10
+      },
+      {
+        "LogicalUniqueName": "Topic4",
+        "Domain": "DomainA",
+        "Connection": "NATSConn3",
+        "TopicName": "ACME.Shipments",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "NATS",
+        "SubscribeType": "NATSAsync",
+        "PollTimeoutus" : 10
       }
     ]
   }

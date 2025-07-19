@@ -14,7 +14,6 @@ static poll_subscriber_args s_args;
 publisher_args* pub_arg= &p_args;
 poll_subscriber_args* poll_sub_args = &s_args;
 
-
 atomic_long total_published = 0;
 atomic_long total_poll_received = 0;
 atomic_long total_async_received = 0;
@@ -133,6 +132,7 @@ static poll_commit_function_ptr_data_T nats_commit_function_data = { NATS_Commit
 static poll_commit_function_ptr_data_T js_commit_function_data = { JS_Commit, "JS_Commit" };
 static poll_commit_function_ptr_data_T asyncq_commit_function_data = { AsyncQ_Commit, "AsyncQ_Commit" };
 
+static getresreq_function_ptr_data_T nats_getresreq_function_data = { NATS_GetRespForReq, "NATS_GetRespForReq" };
 
 void
 print_app_topic_config(AppTopic_T* topic)
@@ -864,7 +864,8 @@ test_initialize(int argc, char** argv)
 
     set_print_frequency(program_options->max_msgs);
 
-    const char* app_json_config_file = getenv(APP_CONFIG_TOPIC_FILE_ENV);
+    //const char* app_json_config_file = getenv(APP_CONFIG_TOPIC_FILE_ENV);
+    const char* app_json_config_file = "./APP_GetResReq.JSON";
 
     if (NDW_ISNULLCHARPTR(app_json_config_file)) {
         fprintf(stderr, "*** ERROR: test_initialize(): NULL app_json_config_file specified\n");
@@ -908,6 +909,8 @@ test_initialize(int argc, char** argv)
         goto shutdown;
     }
 
+goto stest;
+
     if (0 != subscribe()) {
         NDW_LOGERR("*** ERROR: Failed to subscribe!\n");
         goto shutdown;
@@ -950,6 +953,8 @@ test_initialize(int argc, char** argv)
     if (num_poll_subscriptions > 0) {
         pthread_join(sub_thread, NULL);
     }
+
+    pthread_join(grs_thread, NULL);
 
     end_timestamp = get_current_timestamp("Start Time => ");
 

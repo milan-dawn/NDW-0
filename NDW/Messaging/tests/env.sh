@@ -1,4 +1,6 @@
 
+export NDW_MSG_ROOT=/home/milan/new-msg/NDW-0/NDW/Messaging
+
 #
 # Set LD_LIBRARY_PATH to use libcoremassing.so
 #

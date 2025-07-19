@@ -47,7 +47,7 @@ ndw_alloc_align(size_t size)
     if ((0 != ret_code) || (NULL == memptr)) {
         NDW_LOGERR("*** FATAL ERROR: posix_memalign failed with ret_code<%d> errno<%d>\n",
                     ret_code, errno);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     memset(memptr, 0, size);
@@ -421,7 +421,7 @@ ndw_atol(const CHAR_T* str, long* value)
 {
     if (NULL == value) {
         NDW_LOGERR("*** FATAL ERROR: value (long*) parameter is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((NULL == str) || ('\0' == *str)) {
@@ -444,7 +444,7 @@ ndw_atoi(const CHAR_T* str, INT_T* value)
 {
     if (NULL == value) {
         NDW_LOGERR("*** FATAL ERROR: value (INT_T*) parameter is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     long l = *value;
@@ -860,4 +860,13 @@ ndw_CounterCheck(ndw_Counter_T* counter, long check_value, long long sleep_durat
     long new_value = atomic_load(&(counter->counter));
     return (new_value >= check_value) ? true : false;
 } // end method ndw_CounterCheck
- 
+
+// For Debug binary with DEBUG defined, call abort to get backtrace and dump
+void ndw_exit(int status)
+{
+#if defined(DEBUG)
+    abort();
+#endif
+
+    exit(status);
+}

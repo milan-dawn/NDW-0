@@ -57,7 +57,7 @@ static void ndw_tls_header_and_message_Init()
     if (0 != pthread_key_create(&ndw_tls_header_and_message, ndw_TLSDestructor_header_and_message))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_tls_OutMsgCxt!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -68,7 +68,7 @@ static void ndw_tls_OutMsgCxt_Init()
     if (0 != pthread_key_create(&ndw_tls_OutMsgCxt, ndw_TLSDestructor_MsgHeader_OutMsgCxt))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_tls_OutMsgCxt!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -79,7 +79,7 @@ static void ndw_tls_received_msg_header_Init()
     if (0 != pthread_key_create(&ndw_tls_received_msg_header, ndw_TLSDestructor_MsgHeader_ReceivedMsgHeader))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create &ndw_tls_received_msg_header,!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -90,7 +90,7 @@ static void ndw_tls_received_MsgHeaderInfo_Init()
     if (0 != pthread_key_create(&ndw_tls_received_MsgHeaderInfo, ndw_TLSDestructor_MsgHeader_MsgHeaderInfo))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create &ndw_tls_received_MsgHeaderInfo,!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -217,7 +217,7 @@ ndw_LE_to_MsgHeader(UCHAR_T* le_msg, INT_T le_msg_size)
         msginfo = (ndw_InMsgCxt_T*) pthread_getspecific(ndw_tls_received_MsgHeaderInfo);
         if (NULL == msginfo) {
             NDW_LOGERR( "*** FATAL ERROR: pthread_getspecific(ndw_tls_received_MsgHeaderInfo) returned NULL even after allocating an initial one for the thread!!\n");
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
 
@@ -234,7 +234,7 @@ ndw_LE_to_MsgHeader(UCHAR_T* le_msg, INT_T le_msg_size)
         msginfo->header_addr = pthread_getspecific(ndw_tls_received_msg_header);
         if (NULL == msginfo->header_addr) {
             NDW_LOGERR( "*** FATAL ERROR: (ndw_tls_received_msg_header) returned NULL even after allocating it and settig it into TLS!\n");
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
 
@@ -577,7 +577,7 @@ ndw_GetOutMsgCxt()
     ndw_OutMsgCxt_T* mha = pthread_getspecific(ndw_tls_OutMsgCxt);
     if (NULL == mha) {
         NDW_LOGERR( "*** FATAL ERROR: ThreadID<%lu> ndw_tls_OutMsgCxt is NULL!\n", pthread_self());
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
     return mha;
 } // end method ndw_GetOutMsgCxt
@@ -588,7 +588,7 @@ ndw_GetReceivedMsgHeader()
     UCHAR_T* msg_header = pthread_getspecific(ndw_tls_received_msg_header);
     if (NULL == msg_header) {
         NDW_LOGERR( "*** FATAL ERROR: NULL value returned from pthread_getspecific!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     return msg_header;
