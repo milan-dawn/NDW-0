@@ -47,7 +47,7 @@ ndw_alloc_align(size_t size)
     if ((0 != ret_code) || (NULL == memptr)) {
         NDW_LOGERR("*** FATAL ERROR: posix_memalign failed with ret_code<%d> errno<%d>\n",
                     ret_code, errno);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     memset(memptr, 0, size);
@@ -421,7 +421,7 @@ ndw_atol(const CHAR_T* str, long* value)
 {
     if (NULL == value) {
         NDW_LOGERR("*** FATAL ERROR: value (long*) parameter is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((NULL == str) || ('\0' == *str)) {
@@ -444,7 +444,7 @@ ndw_atoi(const CHAR_T* str, INT_T* value)
 {
     if (NULL == value) {
         NDW_LOGERR("*** FATAL ERROR: value (INT_T*) parameter is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     long l = *value;
@@ -465,6 +465,7 @@ static struct option ndw_program_long_options[] = {
     {"waittime", required_argument, 0, 'w'},
     {"pub", required_argument, 0, 'p'},
     {"sub", required_argument, 0, 's'},
+    {"resreq", required_argument, 0, 't'},
     {"valgrind", required_argument, 0, 'v'},
     {0, 0, 0, 0}
 };
@@ -476,6 +477,7 @@ static NDW_TestArgs_T ndw_test_args = {
     .max_msgs = 6,
     .bytes_size = 512,
     .wait_time_seconds = 7,
+    .resreq_time_msecs = 200,
     .is_pub = true,
     .is_sub = true,
     .run_valgrind = false
@@ -487,8 +489,9 @@ ndw_ParseProgramOptions(INT_T argc, CHAR_T** argv)
 {
     int opt;
     int index = -1;
+    long wt;
 
-    while ((opt = getopt_long(argc, argv, "c:m:b:w:p:s:v:", ndw_program_long_options, &index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:m:b:w:p:s:t:v:", ndw_program_long_options, &index)) != -1) {
         printf("OPT = <%c>\n", ((char) opt));
         switch (opt) {
             case 'c':
@@ -514,7 +517,7 @@ ndw_ParseProgramOptions(INT_T argc, CHAR_T** argv)
                 break;
             case 'w':
                 ++ndw_test_args.num_options_given;
-                long wt = 1;
+                wt = 1;
                 if (ndw_atol(optarg, &wt) && (wt > 0)) {
                     ndw_test_args.wait_time_seconds = (INT_T) wt;
                     ++ndw_test_args.num_options_valid;
@@ -534,6 +537,14 @@ ndw_ParseProgramOptions(INT_T argc, CHAR_T** argv)
                     ++ndw_test_args.num_options_valid;
                 }
                 break;
+            case 't':
+                ++ndw_test_args.num_options_given;
+                wt = 1;
+                if (ndw_atol(optarg, &wt) && (wt > 0)) {
+                    ndw_test_args.resreq_time_msecs = (INT_T) wt;
+                    ++ndw_test_args.num_options_valid;
+                }
+                break;
             case 'v':
                 ++ndw_test_args.num_options_given;
                 if (! NDW_ISNULLCHARPTR(optarg)) {
@@ -548,11 +559,12 @@ ndw_ParseProgramOptions(INT_T argc, CHAR_T** argv)
 
     printf("\nBEGIN: Program Arguments:\n");
     printf("num_options_given<%d>\nnum_options_valid<%d>\n\n-c config_file<%s>\n"
-            "-m max_msgs<%d>\n-b bytes_size<%d>\n-w wait_time_seconds<%d>\n"
+            "-m max_msgs<%d>\n-b bytes_size<%d>\n-w wait_time_seconds<%d>\n-t timeout_msec_response_req<%d>\n"
             "-p is_pub<%s>\n-s is_sub<%s>\n-v run_valgrind<%s>\n",
             ndw_test_args.num_options_given, ndw_test_args.num_options_valid,
             (NDW_ISNULLCHARPTR(ndw_test_args.config_file)) ? "??" : ndw_test_args.config_file,
-            ndw_test_args.max_msgs, ndw_test_args.bytes_size, ndw_test_args.wait_time_seconds,
+            ndw_test_args.max_msgs, ndw_test_args.bytes_size,
+            ndw_test_args.wait_time_seconds, ndw_test_args.resreq_time_msecs,
             ndw_test_args.is_pub ? "Y" : "n",
             ndw_test_args.is_sub ? "Y" : "n",
             ndw_test_args.run_valgrind ? "Y" : "n");
@@ -562,9 +574,10 @@ ndw_ParseProgramOptions(INT_T argc, CHAR_T** argv)
         printf("valgrind ");
     }
 
-    printf("--c %s --m %d --b %d --w %d --p %s --s %s\n",
+    printf("--c %s --m %d --b %d --w %d --t %d --p %s --s %s\n",
             (NDW_ISNULLCHARPTR(ndw_test_args.config_file)) ? "??" : ndw_test_args.config_file,
-            ndw_test_args.max_msgs, ndw_test_args.bytes_size, ndw_test_args.wait_time_seconds,
+            ndw_test_args.max_msgs, ndw_test_args.bytes_size,
+            ndw_test_args.wait_time_seconds, ndw_test_args.resreq_time_msecs,
             ndw_test_args.is_pub ? "Y" : "n",
             ndw_test_args.is_sub ? "Y" : "n");
 
@@ -861,3 +874,12 @@ ndw_CounterCheck(ndw_Counter_T* counter, long check_value, long long sleep_durat
     return (new_value >= check_value) ? true : false;
 } // end method ndw_CounterCheck
  
+// For Debug binary with DEBUG defined, call abort to get backtrace and dump
+void ndw_exit(int status)
+{
+#if defined(DEBUG)
+    abort();
+#endif
+
+    exit(status);
+}

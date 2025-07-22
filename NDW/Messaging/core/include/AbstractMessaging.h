@@ -34,14 +34,15 @@
  * This API provides an abstraction layer on top of one or more vendor messaging system(s).
  * The primary API/functions of concern for developers are:
  *
- * ndw_Init()                - Initialize the messaging system data strucures.
- * ndw_Connect               - Make a network or memory connection to a vendor messaging system.
- * ndw_Disconnect            - Disconnect from a previous connection make to a vendor messaging system.
- * ndw_CreateOutMsgCxt       - Create a header and a message body to populate contents prior to sending a message.
- * ndw_Publish               - Publish a message, with header and message body, to an underlying vendor messaging system.
- * ndw_SubscribeAsync        - Subscribe to the messaging system to receive messages asynchronously.
- * ndw_SubscribeSynchronous  - Subscribe Synchronously to receive messages from a Topic.
- * ndw_SynchronousPollForMsg - Poll the messaging system for the next message for a Topic.
+ * ndw_Init()                    - Initialize the messaging system data strucures.
+ * ndw_Connect                   - Make a network or memory connection to a vendor messaging system.
+ * ndw_Disconnect                - Disconnect from a previous connection make to a vendor messaging system.
+ * ndw_CreateOutMsgCxt           - Create a header and a message body to populate contents prior to sending a message.
+ * ndw_Publish                   - Publish a message, with header and message body, to an underlying vendor messaging system.
+ * ndw_SubscribeAsync            - Subscribe to the messaging system to receive messages asynchronously.
+ * ndw_SubscribeSynchronous      - Subscribe Synchronously to receive messages from a Topic.
+ * ndw_SynchronousPollForMsg     - Poll the messaging system for the next message for a Topic.
+ * ndw_GetResponseForRequestMsg  - Get Response for Request sent in timeout interval
  * ndw_Shutdown()            - Tear down Connections and Subscriptions to vendor messaging system and shut down communication.
  *
  * @author Andrena team member
@@ -488,6 +489,18 @@ extern INT_T ndw_SubscribeSynchronous(ndw_Topic_T* topic);
  * @note
  */
 extern INT_T ndw_SynchronousPollForMsg(ndw_Topic_T* topic, LONG_T timeout_ms, LONG_T* dropped_messages);
+
+/**
+ * @brief Get Response Message from Request Message sent within timeout interval
+ *
+ * @param[in] topic Topic data structure on which to synchronously poll for a message.
+ * @param[in] timeout_ms Timeout in milliseconds to wait for messages to appear.
+ *
+ * @return 0 on success, else < 0.
+ *
+ * @note
+ */
+extern INT_T ndw_GetResponseForRequestMsg(ndw_Topic_T* topic, LONG_T timeout_ms);
 
 /**
  * @brief Commit the last message received and processed.

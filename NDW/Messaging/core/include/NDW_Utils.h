@@ -93,6 +93,12 @@ static inline bool NDW_IS_NDW_INIT_THREAD(pthread_t id) { return (id == pthread_
 extern CHAR_T* ndw_alloc_align(size_t size);
 
 /**
+* @brief Dump backtrace on fatal error for DEBUG build
+* @param[in] error type
+*/
+extern void ndw_exit(int status);
+
+/**
  * @struct NDW_TestArgs_T
  * @brief Holds (stress) testing parameters.
  *
@@ -106,6 +112,7 @@ typedef struct NDW_TestArgs
     int max_msgs;           // Maximum number of messagse to publish.
     int bytes_size;         // Approximate size of each message.
     int wait_time_seconds;  // Wait time in seconds when to exit if no messages are received.
+    int resreq_time_msecs;  // Timeout in milliseconds for receved message for request.
     bool is_pub;            // Is Publication enabled?
     bool is_sub;            // Is Subscription enabled?
     bool run_valgrind;      // Run it with valgrind?
@@ -135,6 +142,8 @@ typedef struct NDW_TestArgs
  *   - `--w <time>`: Specify wait time before program exit
  *   - `--p <y>`: Publication enabled?
  *   - `--s <y>`: Subscription enabled?
+ *   - `--w <time>`: Specify wait time before program exit
+ *   - `--t <time>`: Specify timeout for Response from Request
  *   - `--v <y>`: Run valgrind?
  *
  * @return 0 on success, non-zero on failure

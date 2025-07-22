@@ -8,7 +8,8 @@
 
 int main(int argc, char** argv)
 {
-    test_test_initialize(argc, argv);
+    //test_test_initialize(argc, argv);
+    test_initialize(argc, argv);
     return 0;
 } /* end method main */
 

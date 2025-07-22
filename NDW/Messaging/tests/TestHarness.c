@@ -10,10 +10,11 @@ int num_poll_subscriptions = 0;
 
 static publisher_args p_args;
 static poll_subscriber_args s_args;
+static resp_request_args r_args;
 
 publisher_args* pub_arg= &p_args;
 poll_subscriber_args* poll_sub_args = &s_args;
-
+resp_request_args* res_req_args = &r_args;
 
 atomic_long total_published = 0;
 atomic_long total_poll_received = 0;
@@ -67,6 +68,7 @@ static INT_T NATS_Subscribe_Sync(ndw_Topic_T* topic) { return ndw_SubscribeSynch
 static INT_T JS_subscribe_Async(ndw_Topic_T* topic) { return ndw_SubscribeAsync(topic); }
 static INT_T JS_Subscribe_Sync(ndw_Topic_T* topic) { return ndw_SubscribeSynchronous(topic); }
 static INT_T AsyncQ_Subscribe(ndw_Topic_T* topic) { return ndw_SubscribeAsync(topic); }
+static INT_T NATS_GetRespForReq(ndw_Topic_T* topic, LONG_T timeout) { return ndw_GetResponseForRequestMsg(topic, timeout); }
 
 static INT_T NATS_Poll(ndw_Topic_T* topic, LONG_T timeout_us) {
     LONG_T dropped_messages;
@@ -133,6 +135,8 @@ static poll_commit_function_ptr_data_T nats_commit_function_data = { NATS_Commit
 static poll_commit_function_ptr_data_T js_commit_function_data = { JS_Commit, "JS_Commit" };
 static poll_commit_function_ptr_data_T asyncq_commit_function_data = { AsyncQ_Commit, "AsyncQ_Commit" };
 
+static resreq_function_ptr_data_T nats_getresreq_function_data =
+    { NATS_Subscribe_Async, NATS_GetRespForReq, "NATS_GetRespForReq" };
 
 void
 print_app_topic_config(AppTopic_T* topic)
@@ -180,6 +184,9 @@ print_app_topic_config(AppTopic_T* topic)
             break;
         case QAsync:
             printf("SubscribeType: QAsync\n");
+            break;
+        case NATSGetResp:
+            printf("SubscribeType: NATS_GetRespForReq\n");
             break;
         case Unknown:
             printf("SubscribeType: Unknown\n");
@@ -351,6 +358,12 @@ load_app_topic_configs(const char* json_file)
                 t->is_poll_activity = true;
                 t->function_poll_data = asyncq_poll_function_data;
                 t->function_commit_data = asyncq_commit_function_data;
+            } else if (strcasecmp(subscribe_type_json->valuestring, "NATSGetResp") == 0)
+            {
+                t->SubscribeType = NATSGetResp;
+                t->is_poll_activity = true;
+                t->function_resreq_data = nats_getresreq_function_data;
+                t->function_commit_data = nats_commit_function_data;
             }
             else {
                 fprintf(stderr, "Invalid subscribe_type<%s>\n", subscribe_type_json->valuestring);
@@ -769,6 +782,147 @@ on_poll_exit:
     return args;
 } // end method thread_subscriber_poll
 
+void*
+thread_publisher_resreq(void *arg)
+{
+    printf("GETResponseRequest Publisher Thread ID<%lu>\n", pthread_self());
+
+    publisher_args *args = (publisher_args *)arg;
+
+    if (num_publications <= 0) {
+        args->ret_code = 0;
+        return arg;
+    }
+
+    if (args->delay_us <= 0) {
+        //args->delay_us = 1;
+    }
+
+    ndw_ThreadInit();
+
+    args->ret_code = -1;
+    args->thread_id = pthread_self();
+    NDW_LOGX("Publish Thread ID<%lu>\n", args->thread_id);
+
+    wait_for_start_signal();
+
+    int data_size = -1;
+    long publish_count = 0;
+    int publish_code = -1;
+
+    AppTopic_T* a_topic;
+    ndw_Topic_T* topic;
+    for (int i = 0; i < args->num_msgs; i++)
+    {
+        for (int j = 0; j < num_topics; ++j)
+        {
+            a_topic = &Topics[j];
+            if (a_topic->Disabled || a_topic->SubscribeType != NATSGetResp)
+                continue;
+
+            topic = a_topic->topic;
+            topic->sequence_number += 1;
+            char* data = ndw_CreateTestJsonStringofNSize(topic, "Sample Message",
+                        topic->sequence_number, args->msg_size, &data_size);
+            data_size += 1;
+
+            ndw_OutMsgCxt_T* cxt = ndw_CreateOutMsgCxt(
+                                topic, NDW_MSGHEADER_1, NDW_ENCODING_FORMAT_JSON,
+                                (unsigned char*) data, data_size);
+            if (NULL == cxt) {
+                NDW_LOGERR("Failed to create Output Message Context!\n");
+                free(data);
+                goto on_publisher_exit;
+            }
+
+            if (0 != (publish_code = a_topic->function_publish_data.function(topic))) {
+                NDW_LOGERR("*** ERROR: ndw_PublishMsg() failed! "
+                    "sequencer_number<%ld> with total publish count<%ld> "
+                    "error code <%d>\n", topic->sequence_number, publish_count, publish_code);
+
+                free(data);
+                goto on_publisher_exit;
+            }
+
+            free(data);
+            sleep(1);
+        }
+    }
+
+on_publisher_exit:
+
+    ndw_ThreadExit();
+    return args;
+}
+
+void*
+thread_getresreq_wait(void *arg)
+{
+    printf("GetResponseForRequest Thread ID<%lu>\n", pthread_self());
+
+    resp_request_args *args = (resp_request_args *) arg;
+    if (args->timeout_msec <= 0) {
+        args->timeout_msec = 200;
+    }
+
+    ndw_ThreadInit();
+
+    args->thread_id = pthread_self();
+    NDW_LOGX("GetResponseForRequest Thread ID<%lu>\n", pthread_self());
+
+    args->ret_code = -1;
+
+    wait_for_start_signal();
+
+    AppTopic_T* a_topic;
+    ndw_Topic_T* topic;
+
+    for (int i = 0; i < num_topics; ++i)
+    {
+        a_topic = &Topics[i];
+        if (a_topic->Disabled || a_topic->SubscribeType != NATSGetResp)
+            continue;
+
+        topic = a_topic->topic;
+
+        int num_items = a_topic->function_resreq_data.function(topic);
+
+        if (num_items != 0 ) {
+            NDW_LOGERR("Subscriber encountered error polling for Async Messages on %s\n",
+                        topic->debug_desc);
+            goto on_poll_exit;
+        }
+        break;  // one subscriber
+    } // end for each Topic
+
+    int data_size;
+    long sequence_number = ++topic->sequence_number;
+    char* data = ndw_CreateTestJsonString(topic, "Sample Message", sequence_number, &data_size);
+
+    data_size += 1;
+    ndw_OutMsgCxt_T* cxt = ndw_CreateOutMsgCxt(topic, NDW_MSGHEADER_1, NDW_ENCODING_FORMAT_JSON,
+                                    (unsigned char*) data, data_size);
+    if (NULL == cxt) {
+        NDW_LOGERR("Failed to create Output Message Context!\n");
+        free(data);
+        goto on_poll_exit;
+    }
+
+    INT_T status = a_topic->function_resreq_data.resreq_function(topic, (LONG_T)args->timeout_msec);
+
+    if (status != 1) {
+        NDW_LOGERR("Fatal: GetResponseForRequestMsg test failed on %s\n", topic->debug_desc);
+    } else {
+        args->ret_code = 0;
+    }
+
+    free(data);
+
+on_poll_exit:
+    ndw_ThreadExit();
+    return args;
+} // end method thread_getresreq_sub -- subscribe async
+
 static void
 print_statistics()
 {
@@ -862,6 +1016,10 @@ test_initialize(int argc, char** argv)
         program_options->wait_time_seconds = 6;
     }
 
+    if (program_options->resreq_time_msecs <= 0) {
+        program_options->resreq_time_msecs = 200;
+    }
+
     set_print_frequency(program_options->max_msgs);
 
     const char* app_json_config_file = getenv(APP_CONFIG_TOPIC_FILE_ENV);
@@ -908,11 +1066,6 @@ test_initialize(int argc, char** argv)
         goto shutdown;
     }
 
-    if (0 != subscribe()) {
-        NDW_LOGERR("*** ERROR: Failed to subscribe!\n");
-        goto shutdown;
-    }
-    
     pub_arg->num_msgs = program_options->max_msgs;
     pub_arg->msg_size = program_options->bytes_size;
     pub_arg->delay_us = 0;
@@ -925,9 +1078,13 @@ test_initialize(int argc, char** argv)
     poll_sub_args->timeout_sec = program_options->wait_time_seconds;
     poll_sub_args->ret_code = -1;
 
+    resp_request_args* res_req_args = &r_args;
+    res_req_args->timeout_msec = program_options->resreq_time_msecs;
+    res_req_args->ret_code = -1;
+
     fprintf(stdout, "Subscriber Thread Args: timeout_sec<%d>\n", poll_sub_args->timeout_sec);
 
-    pthread_t pub_thread, sub_thread;
+    pthread_t pub_thread, sub_thread, grs_thread, pub_grs_thread;
 
     if (num_publications > 0) {
         pthread_create(&pub_thread, NULL, (thread_func_t) thread_publisher, pub_arg);
@@ -937,7 +1094,12 @@ test_initialize(int argc, char** argv)
         pthread_create(&sub_thread, NULL, (thread_func_t) thread_subscriber_poll, poll_sub_args);
     }
 
-    sleep(1);
+    // create, subscribe and wait
+    pthread_create(&grs_thread, NULL, (thread_func_t) thread_getresreq_wait, res_req_args);
+
+    // create publisher
+    pthread_create(&pub_grs_thread, NULL, (thread_func_t) thread_publisher_resreq, pub_arg);
+
 
     start_timestamp = get_current_timestamp("Start Time => ");
 
@@ -950,6 +1112,9 @@ test_initialize(int argc, char** argv)
     if (num_poll_subscriptions > 0) {
         pthread_join(sub_thread, NULL);
     }
+
+    pthread_join(grs_thread, NULL);
+    pthread_join(pub_grs_thread, NULL);
 
     end_timestamp = get_current_timestamp("Start Time => ");
 
@@ -1055,6 +1220,10 @@ test_test_initialize(int argc, char** argv)
 
     poll_subscriber_args* poll_sub_args = &s_args;
     poll_sub_args->timeout_sec = program_options->wait_time_seconds;
+    poll_sub_args->ret_code = -1;
+
+    resp_request_args* res_req_args = &r_args;
+    res_req_args->timeout_msec = program_options->resreq_time_msecs;
     poll_sub_args->ret_code = -1;
 
     fprintf(stdout, "Subscriber Thread Args: timeout_sec<%d>\n", poll_sub_args->timeout_sec);

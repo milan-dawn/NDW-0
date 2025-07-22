@@ -17,6 +17,11 @@ extern bool ndw_NATS_IsJSPubSub(ndw_Topic_T*);
 extern INT_T ndw_NATS_JSPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length, LONG_T timeout_ms, void** vendor_closure);
 extern INT_T ndw_NATS_CommitLastMsg(ndw_Topic_T* topic, void* vendor_closure);
 
+extern INT_T ndw_NATS_GetResponseForRequestMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
+                                LONG_T timeout_ms, void** vendor_closure);
+
+extern void nats_clearLastError(void);
+
 typedef struct ndw_NATS_Closure
 {
     LONG_T counter;                         // Incremental counter.
@@ -54,7 +59,7 @@ static void ndw_NATS_tls_closure_Init()
 {
     if (0 != pthread_key_create(&ndw_NATS_tls_closure, ndw_NATS_tls_closure_Destructor)) {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_NATS_tls_closure!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -64,7 +69,7 @@ static void ndw_NATS_tls_populatecxt_Init()
 {
     if (0 != pthread_key_create(&ndw_NATS_tls_populatecxt, ndw_NATS_tls_populatecxt_Destructor)) {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_NATS_tls_populatecxt!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -73,7 +78,7 @@ ndw_NATS_PopulateCxt(const CHAR_T* filename, INT_T line_number, const CHAR_T* fu
 {
     if (NULL == topic) {
         ndw_print(filename, line_number, function_name, ndw_err_file, "*** FATAL ERROR *** ndw_Topic_T* is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_TopicCxt_T* cxt = (ndw_NATS_TopicCxt_T*) pthread_getspecific(ndw_NATS_tls_populatecxt);
@@ -81,7 +86,7 @@ ndw_NATS_PopulateCxt(const CHAR_T* filename, INT_T line_number, const CHAR_T* fu
     if (NULL == cxt) {
         ndw_print(filename, line_number, function_name, ndw_err_file,
              "*** FATAL ERROR *** ndw_NATS_TopicCxt_T* is NULL for %s\n", cxt->topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     memset(cxt, 0, sizeof(ndw_NATS_TopicCxt_T));
@@ -92,21 +97,21 @@ ndw_NATS_PopulateCxt(const CHAR_T* filename, INT_T line_number, const CHAR_T* fu
     if (NULL == cxt->nats_topic) {
         ndw_print(filename, line_number, function_name, ndw_err_file,
              "*** FATAL ERROR *** nats_topic from vendor_opaque is NULL for %s\n", cxt->topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
  
     cxt->connection = topic->connection;
     if (NULL == cxt->connection) {
         ndw_print(filename, line_number, function_name, ndw_err_file,
              "*** FATAL ERROR *** ndw_Connection_T* is NULL for %s\n", cxt->topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     cxt->nats_connection = (ndw_NATS_Connection_T*) cxt->connection->vendor_opaque;
     if (NULL == cxt->nats_connection) {
         ndw_print(filename, line_number, function_name, ndw_err_file,
              "*** FATAL ERROR *** ndw_NATS_Connection_T* is NULL for %s\n", cxt->topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
     
     return cxt;
@@ -121,7 +126,7 @@ ndw_NATS_get_EmptyClosure(const char* file_name, int line_number, const char* fu
     if (NULL == topic) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: closure does NOT match with what is stored in TLS\n",
             file_name, line_number, function_name);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Closure_T* c = (ndw_NATS_Closure_T*) pthread_getspecific(ndw_NATS_tls_closure);
@@ -133,51 +138,51 @@ ndw_NATS_get_EmptyClosure(const char* file_name, int line_number, const char* fu
     if (NULL != c->topic) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: ndw_Topic_T Pointer is NOT NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != c->nats_topic) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: ndw_NATS_Topic_T Pointer is NOT NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != c->nats_connection) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: ndw_NATS_Connection_T Pointer is NOT NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != c->nats_msg) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: nats_msg Pointer is NOT NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != c->user_msg) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: user_msg Pointer is NOT NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (0 != c->msg_size) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: msg_size<%d> is NOT zero for %s\n",
             file_name, line_number, function_name, c->msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: ndw_Connection_T  Pointer is NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Topic_T* nats_topic = (ndw_NATS_Topic_T*) topic->vendor_opaque;
     if (NULL == nats_topic) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: ndw_NATS_Topic_T Pointer is NULL for %s\n",
             file_name, line_number, function_name, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Connection_T* nats_connection = (ndw_NATS_Connection_T*) connection->vendor_opaque;
@@ -201,7 +206,7 @@ ndw_NATS_Clear_Closure(const char* file_name, int line_number, const char* funct
     if (NULL == topic) {
         NDW_LOGERR("[%s, %d, %s]: ***FATAL ERROR: closure does NOT match with what is stored in TLS\n",
             file_name, line_number, function_name);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Closure_T* c = (ndw_NATS_Closure_T*) pthread_getspecific(ndw_NATS_tls_closure);
@@ -316,7 +321,7 @@ ndw_NATS_Internal_AsyncMessageHandler(natsConnection *nc, natsSubscription *sub,
 
     if (NULL == closure) {
         NDW_LOGERR( "*** FATAL ERROR: closure is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Topic_T* nats_t = (ndw_NATS_Topic_T*) closure;
@@ -396,18 +401,18 @@ ndw_NATS_ParseConnectionOptions(ndw_Connection_T* connection, const CHAR_T* opti
 {
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL ERROR: NULL POINTER ndw_Connection_T*\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
 
     if (NDW_ISNULLCHARPTR(option_name)) {
         NDW_LOGERR("*** FATAL ERROR: NULL option_name for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == value_exists) {
         NDW_LOGERR("*** FATAL ERROR: NULL value_exists* for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     *value_exists = false;
@@ -415,7 +420,7 @@ ndw_NATS_ParseConnectionOptions(ndw_Connection_T* connection, const CHAR_T* opti
     ndw_NATS_Connection_T* conn = (ndw_NATS_Connection_T*) connection->vendor_opaque;
     if (NULL == conn) {
         NDW_LOGERR("*** FATAL ERROR: NULL ndw_NATS_Connection_T* for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     LONG_T value = -1;
@@ -449,7 +454,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
     ndw_Domain_T* domain = connection->domain;
     if (NULL == domain) {
         NDW_LOGERR("*** FATAL ERROR: ndw_domain_T* POINTER not set in connection for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     const CHAR_T* url = connection->connection_url;
@@ -457,7 +462,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
     ndw_NATS_Connection_T* conn = (ndw_NATS_Connection_T*) connection->vendor_opaque;
     if (NULL == conn) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_Connection_T* NOT set in connection->vendor_opaque for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != conn->conn) {
@@ -492,43 +497,43 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
 
     if (NATS_OK != natsOptions_SetName(nats_options, name_for_closure)) {
         NDW_LOGERR("*** FATAL ERROR: natsOptions_SetName failed for %s\n", connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     free((CHAR_T*) name_for_closure);
 
     if (NATS_OK != natsOptions_SetClosedCB(nats_options, ndw_NATS_ConnectionClosedPermanently, NULL)) {
         NDW_LOGERR("*** FATAL ERROR: FAILED to set callback for natsOptions_SetClosedCB\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NATS_OK != natsOptions_SetDisconnectedCB(nats_options, ndw_NATS_ConnectionDisconnected, NULL))
     {
         NDW_LOGERR("*** FATAL ERROR: FAILED to set callback for natsOptions_SetDisconnectedCB\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NATS_OK != natsOptions_SetReconnectedCB(nats_options, ndw_NATS_ConnectionReconnected, NULL))
     {
         NDW_LOGERR("*** FATAL ERROR: FAILED to set callback for natsOptions_SetReconnectedCB\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NATS_OK != natsOptions_SetURL(nats_options, url)) {
         NDW_LOGERR("*** FATAL ERROR: natsOptions_setURL failed for url<%s>\n", url);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NATS_OK != natsOptions_SetIOBufSize(nats_options, (INT_T) conn->iobuf_size)) {
         NDW_LOGERR("*** FATAL ERROR: natsOptions_SetIOBufSize failed for value<%ld>\n", conn->iobuf_size);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (conn->connection_timeout > 0) {
         if (NATS_OK != natsOptions_SetTimeout(nats_options, conn->connection_timeout)) {
             NDW_LOGERR("*** FATAL ERROR: natsOptions_SetTimeout failed for value<%ld>\n",
                         conn->connection_timeout);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
         else {
             NDW_LOGX("NOTE: natsOptions_SetTimeout with value<%ld>\n", conn->connection_timeout);
@@ -539,7 +544,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
         if (NATS_OK != natsOptions_SetName(nats_options, connection->connection_unique_name)) {
             NDW_LOGERR("*** FATAL ERROR: natsOptions_setName failed for value<%s>\n",
                         connection->connection_unique_name);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
         else {
             NDW_LOGX("NOTE: natsOptions_SetName with value<%s>\n", connection->connection_unique_name);
@@ -550,7 +555,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
         if (NATS_OK != natsOptions_SetMaxReconnect(nats_options, conn->connection_max_reconnects)) {
             NDW_LOGERR("*** FATAL ERROR: natsOptions_SetMaxReconnect failed for value<%ld>\n",
                         conn->connection_max_reconnects);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
         else {
             NDW_LOGX("NOTE: natsOptions_SetMaxReconnect with value<%ld>\n", conn->connection_max_reconnects);
@@ -561,7 +566,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
         if (NATS_OK != natsOptions_SetReconnectWait(nats_options, conn->connection_reconnection_wait)) {
             NDW_LOGERR("*** FATAL ERROR: natsOptions_SetReconnectWait failed for value<%ld>\n",
                         conn->connection_reconnection_wait);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
         else {
             NDW_LOGX("NOTE: natsOptions_SetReconnectWait with value<%ld>\n", conn->connection_reconnection_wait);
@@ -572,7 +577,7 @@ ndw_NATS_ConnectWithLock(ndw_Connection_T* connection)
         if (NATS_OK != natsOptions_SetNoEcho(nats_options, true)) {
             NDW_LOGERR("*** FATAL ERROR: natsOptions_SetNoEcho failed for value<%ld>\n",
                         conn->connection_reconnection_wait);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
         else {
             NDW_LOGX("NOTE: WARNING: natsOptions_SetNoEcho as TRUE!\n");
@@ -881,23 +886,23 @@ ndw_NATS_Init(ndw_ImplAPI_T* impl, INT_T vendor_id)
 
     if (NULL == impl) {
         NDW_LOGERR( "*** FATAL ERROR: NULL ndw_ImplAPI_T POINTER\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NDW_IMPL_NATS_IO_ID != impl->vendor_id) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid ask to Init derivation as id<%d> and Expected <%d>\n", impl->vendor_id, NDW_IMPL_NATS_IO_ID);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((NULL == impl->vendor_name) || ('\0' == *(impl->vendor_name))) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid ask to Init derivation for id<%d> but vendor_name is NULL!\n", impl->vendor_id);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (0 != strcmp(impl->vendor_name, NDW_IMPL_NATS_IO_NAME)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid ask to Init derivation for id<%d> as name<%s> while Expected name<%s>\n",
                 impl->vendor_id, impl->vendor_name, NDW_IMPL_NATS_IO_NAME);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
 #if 0
@@ -918,6 +923,7 @@ ndw_NATS_Init(ndw_ImplAPI_T* impl, INT_T vendor_id)
     impl->GetQueuedMsgCount = ndw_NATS_GetQueuedMsgCount;
     impl->SubscribeSynchronously = ndw_NATS_SubscribeSynchronously;
     impl->SynchronousPollForMsg = ndw_NATS_SynchronousPollForMsg;
+    impl->GetResponseForRequestMsg = ndw_NATS_GetResponseForRequestMsg;
     impl->CommitLastMsg = ndw_NATS_CommitLastMsg;
     impl->CommitQueuedMsg = ndw_NATS_CommitQueuedMsg;
     impl->CleanupQueuedMsg = ndw_NATS_CleanupQueuedMsg;
@@ -1025,7 +1031,7 @@ ndw_Build_JSAttributes_String(ndw_Topic_T* topic)
     if (NULL == nats_topic) {
         NDW_LOGERR("*** FATAL ERROR Cannot print ndw_JS_Attr_T as ndw_NATS_Topic_T* is NULL for %s\n",
             topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_JS_Attr_T* attr = &(nats_topic->nats_js_attr);
@@ -1095,13 +1101,13 @@ ndw_NATS_PublicationBackoff(ndw_NATS_Connection_T* conn)
 {
     if (NULL == conn) {
         NDW_LOGERR("*** ERROR FATAL: ndw_NATS_Connection* conn parameter is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Connection_T* connection = conn->ndw_connection;
     if (NULL == connection) {
         NDW_LOGERR("*** ERROR FATAL: ndw_Connection* POINTER is NULL inside of ndw_NATS_Connection_T*\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     NDW_LOGX("Trying backoff on %s flush_timeout_ms<%ld> publication_backoff_bytes<%ld> "
@@ -1155,7 +1161,7 @@ ndw_NATS_PublishMsg()
     ndw_OutMsgCxt_T* cxt_msg = ndw_GetOutMsgCxt();
     if (NULL == cxt_msg) {
         NDW_LOGERR("*** FATAL ERROR: ndw_GetOutMsg() returned NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Topic_T* t = cxt_msg->topic;
@@ -1193,7 +1199,7 @@ ndw_NATS_PublishMsg()
 
     if (NDW_ISNULLCHARPTR(t->pub_key)) {
         NDW_LOGERR("*** FATAL ERROR: pub_key is NULL in Topic! %s\n", t->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (cxt_msg->loopback_test) {
@@ -1368,7 +1374,7 @@ ndw_NATS_SubscribeAsync(ndw_Topic_T* topic)
         if (NATS_OK != natsOptions_SetErrorHandler(nats_options, ndw_NATS_AsyncEventError, nats_topic))
         {
             NDW_LOGERR("*** FATAL ERROR: FAILED to set (Async) callback for natsOptions_SetErrorHandler\n");
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         natsOptions_Destroy(nats_options);
@@ -1529,7 +1535,7 @@ ndw_NATS_SynchronousPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* ms
 
     if (NULL == vendor_closure) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure Pointer to Pointer is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     *vendor_closure = NULL;
@@ -1604,6 +1610,101 @@ ndw_NATS_SynchronousPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* ms
     }
 } // end method ndw_NATS_SynchronousPollForMsg
 
+INT_T
+ndw_NATS_GetResponseForRequestMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
+                                LONG_T timeout_ms, void** vendor_closure)
+{
+    ndw_OutMsgCxt_T* cxt_msg = ndw_GetOutMsgCxt();
+    if (NULL == cxt_msg) {
+        NDW_LOGERR("*** FATAL ERROR: ndw_GetOutMsg() returned NULL!\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_Topic_T* t = cxt_msg->topic;
+    ndw_NATS_TopicCxt_T* cxt_topic = NDW_NATS_POPULATECXT(t);
+
+    if (t->disabled || t->connection->disabled) {
+        NDW_LOGERR("*** ERROR: topic or topic connection disabled!\n");
+        return 0;
+    }
+
+    ndw_Connection_T* c = cxt_topic->connection;
+
+    if (c->disabled) {
+        NDW_LOGERR("*** ERROR: ctx topic connection disabled!\n");
+        return 0;
+    }
+
+    CHAR_T* start_address = (CHAR_T*) cxt_msg->header_address;
+    INT_T header_size = cxt_msg->header_size;
+    INT_T msg_size = cxt_msg->message_size;
+    INT_T total_size = header_size + msg_size;
+
+    if (! ndw_NATS_IsConnected(c)) {
+        NDW_LOGTOPICERRMSG("Connection was NOT established (before)!", t);
+        return -3;
+    }
+
+    ndw_NATS_Connection_T* nats_connection = (ndw_NATS_Connection_T*) c->vendor_opaque;
+    if (NULL == nats_connection) {
+        NDW_LOGERR("*** WARNING: ndw_NATS_Connection_T* not yet allocated for %s\n", t->debug_desc);
+        return -4;
+    }
+
+    if (! t->is_pub_enabled) {
+        NDW_LOGERR("*** WARNING: Topic is NOT enabled for Publication! %s\n", t->debug_desc);
+        return -5;
+    }
+
+    if (NDW_ISNULLCHARPTR(t->pub_key)) {
+        NDW_LOGERR("*** FATAL ERROR: pub_key is NULL in Topic! %s\n", t->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_NATS_Topic_T* nats_topic = cxt_topic->nats_topic;
+
+    *vendor_closure = NULL;
+    *msg_length = 0;
+
+    natsStatus status;
+    natsMsg *request_msg = NULL;
+    status = natsMsg_Create(&request_msg, t->pub_key, NULL, start_address, total_size);
+    if (status != NATS_OK) {
+        NDW_LOGERR("*** FATAL ERROR: nats message create failed! %s\n", t->debug_desc);
+        return -6;
+    }
+
+    natsMsg *reply_msg = NULL;
+    status = natsConnection_RequestMsg(&reply_msg, nats_connection->conn, request_msg, timeout_ms);
+
+    natsMsg_Destroy(request_msg);
+    request_msg = NULL;
+
+    if (NATS_OK == status && (reply_msg != NULL)) {
+        const CHAR_T* user_msg = natsMsg_GetData(reply_msg);
+        INT_T reply_msg_size = natsMsg_GetDataLength(reply_msg);
+
+        ndw_NATS_Closure_T* closure = NDW_NATS_GET_EMPTY_CLOSURE(topic);
+
+        closure->nats_msg = reply_msg;
+        closure->user_msg = user_msg;
+        closure->msg_size = reply_msg_size;
+
+        *msg = user_msg;
+        *msg_length = reply_msg_size;
+        *vendor_closure = closure;
+        nats_topic->total_messages_get_requestmsg += 1;
+
+        return 1;
+    } else if (NATS_TIMEOUT != status) {
+        NDW_LOGERR("Get Response from Requested Msg failed with NATS error code<%s> for %s\n",
+                        natsStatus_GetText(status), topic->debug_desc);
+        nats_clearLastError();
+        return -7;
+    }
+
+    return 0;
+} // end method ndw_NATS_GetResponseForRequestMsg
 
 /*
  * NOTE: Talk about complexity in handling subscription using JetStream!!
@@ -1735,7 +1836,7 @@ ndw_NATS_JSInitWithLock(ndw_NATS_Connection_T* nats_connection)
     if (nats_connection->js_enabled_count <= 0) {
         NDW_LOGERR("*** FATAL ERROR: Asked to initiate JetStream connection but it is NOT enabled in "
                     "ndw_NATS_Connection_T for %s\n", nats_connection->ndw_connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != nats_connection->js_context) {
@@ -1776,7 +1877,7 @@ ndw_NATS_JS_AsyncMsgHandler(natsConnection *nc, natsSubscription *sub, natsMsg *
 
     if (NULL == closure) {
         NDW_LOGERR( "*** FATAL ERROR: closure is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
 
@@ -1784,7 +1885,7 @@ ndw_NATS_JS_AsyncMsgHandler(natsConnection *nc, natsSubscription *sub, natsMsg *
     ndw_Topic_T* t = nats_t->ndw_topic;
     if (NULL == t) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_Topic_T Pointer is NULL in ndw_NATS_Topic_T\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     CHAR_T* ip_address = NULL;
@@ -1861,14 +1962,14 @@ ndw_NATS_JSSubscribe(ndw_Topic_T* topic, bool push_mode)
          if (! js_attr->is_push_mode) {
             NDW_LOGERR("*** FATAL ERROR: Internal Error. Invoked for PUSH mode on JetStream when it is NOT "
                         "configured as such " "for %s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
     else {
         if (! js_attr->is_pull_mode) {
             NDW_LOGERR("*** FATAL ERROR: Internal Error. Invoked for PULL mode on JetStream when it is NOT "
                         "configured as such " "for %s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
 
@@ -1961,7 +2062,7 @@ ndw_NATS_JSPublish(ndw_Topic_T* topic)
     ndw_OutMsgCxt_T* cxt = ndw_GetOutMsgCxt();
     if (NULL == cxt) {
         NDW_LOGERR("*** FATAL ERROR: ndw_GetOutMsg() returned NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     UCHAR_T* start_address = (UCHAR_T*) cxt->header_address;
@@ -2008,7 +2109,7 @@ ndw_NATS_JSPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
 {
     if ((NULL == msg) || (NULL == msg_length)) {
         NDW_LOGERR("*** FATAL ERROR: msg and/or msg_length POINTER parameter(s) is NULL! For %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (timeout_ms < 0)
@@ -2016,7 +2117,7 @@ ndw_NATS_JSPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
 
     if (NULL == vendor_closure) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure Pointer to Pointer is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     *vendor_closure = NULL;
@@ -2125,7 +2226,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL ERROR: ndw_Connection_T NOTset for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Connection_T* nats_connection = (ndw_NATS_Connection_T*) connection->vendor_opaque;
@@ -2219,7 +2320,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
 
     if (NULL != topic->vendor_opaque) {
         NDW_LOGERR("*** FATAL ERROR: vendor_opaque NOT NULL during initialization for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Topic_T* nats_topic = calloc(1, sizeof(ndw_NATS_Topic_T));
@@ -2230,7 +2331,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
 
     if (! ndw_is_really_NATS_connection(connection)) {
         NDW_LOGERR("*** FATAL ERROR: Cannot process Connection Configuration for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_IsJSPubSub(topic);
@@ -2238,7 +2339,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
     ndw_NATS_JS_Attr_T* attr = &(nats_topic->nats_js_attr);
     if (! attr->is_initialized) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T is NOT initialized for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (! attr->is_enabled) {
@@ -2251,7 +2352,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
     // Durability is expected. JetStream needed.
     if (attr->is_config_error) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T initialized has CONFIG error for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (! topic->is_pub_enabled)
@@ -2263,13 +2364,13 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
     if ((!attr->is_pub_enabled) && (!attr->is_sub_enabled)) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T has neither pub NOR sub enabled for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (attr->is_push_mode && attr->is_pull_mode) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T BOTH PUSH and PULL mode enabled for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     // Check sub. Cannot be both PUSH and PULL mode.
@@ -2278,7 +2379,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
         if (! atleast_one_mode) {
             NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T Neither PUSH NOR PULL mode enabled for %s\n",
                     topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
 
@@ -2291,7 +2392,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
     if (attr->is_pub_enabled && no_stream_subject_name) {
         NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T: Publish need stream_subject_name for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     // Check Sub attributes for PUSH and PULL.
@@ -2301,7 +2402,7 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
             if (no_stream_name || no_durable_name || no_filter) {
                 NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T: PUSH mode needs stream_name and durable_name "
                             "and filter for %s\n", topic->debug_desc);
-                exit(EXIT_FAILURE);
+                ndw_exit(EXIT_FAILURE);
             }
         }
         else if (attr->is_pull_mode) {
@@ -2309,12 +2410,12 @@ ndw_NATS_ProcessConfiguration(ndw_Topic_T* topic)
             if (no_durable_name || no_filter) {
                 NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T: PULL mode needs durable_name and filter for %s\n",
                                 topic->debug_desc);
-                exit(EXIT_FAILURE);
+                ndw_exit(EXIT_FAILURE);
             }
         }
         else {
             NDW_LOGERR("*** FATAL ERROR: ndw_NATS_JS_Attr_T Neither PUSH or PULL mode enabled for %s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
     } // end if sub is enabled
@@ -2335,7 +2436,7 @@ ndw_NATS_CommitQueuedMsg(ndw_Topic_T* topic, void* vendor_closure)
     ndw_NATS_Closure_T* c = (ndw_NATS_Closure_T*) vendor_closure;
     if (NULL == c) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (ndw_verbose > 3) {
@@ -2345,7 +2446,7 @@ ndw_NATS_CommitQueuedMsg(ndw_Topic_T* topic, void* vendor_closure)
 
     if (NULL == c->nats_msg) {
         NDW_LOGERR("*** FATAL ERROR: nats_msg Pointer is NULL in vendor_closure!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T ret_code = 0;
@@ -2384,7 +2485,7 @@ ndw_NATS_CleanupQueuedMsg(ndw_Topic_T* topic, void* vendor_closure)
     ndw_NATS_Closure_T* c = (ndw_NATS_Closure_T*) vendor_closure;
     if (NULL == c) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (ndw_verbose > 3) {
@@ -2429,12 +2530,12 @@ ndw_NATS_CommitLastMsg(ndw_Topic_T* topic, void* vendor_closure)
 {
     if (NULL == topic) {
         NDW_LOGERR("*** FATAL ERROR: NULL Topic Pointer\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == vendor_closure) {
         NDW_LOGERR("*** FATAL ERROR: NULL vendor_closure Pointer for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Closure_T* arg_closure = (ndw_NATS_Closure_T*) vendor_closure;
@@ -2442,55 +2543,55 @@ ndw_NATS_CommitLastMsg(ndw_Topic_T* topic, void* vendor_closure)
     ndw_NATS_Closure_T* closure = (ndw_NATS_Closure_T*) pthread_getspecific(ndw_NATS_tls_closure);
     if (NULL == closure) {
         NDW_LOGERR("*** FATAL ERROR: NULL vendor_closure Pointer in ndw_NATS_tls_closure for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (arg_closure != closure) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure Pointer <%p> and closure Pointer <%p> "
                     "in ndw_NATS_tls_closure do NOT match %s\n", vendor_closure, closure, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (arg_closure->counter != closure->counter) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure counter <%ld> and closure Pointer <%ld> "
                     "in ndw_NATS_tls_closure do NOT match for %s\n",
                     arg_closure->counter, closure->counter, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == arg_closure->topic) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure has NULL ndw_Topic_T Pointer for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (closure->topic != arg_closure->topic) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure ndw_Topic_T Pointer<%p> is different from "
                     " arg_closure Topic Pointer<%p> for %s\n", closure->topic, arg_closure->topic, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Topic_T* nats_topic = closure->nats_topic;
     if (NULL == nats_topic) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure has NULL ndw_NATS_Topic_T Pointer for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_NATS_Connection_T* nats_connection = closure->nats_connection;
     if (NULL == nats_connection) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure has NULL ndw_NATS_Connection_T Pointer for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     natsMsg* nats_msg = closure->nats_msg;
     if (NULL == nats_msg) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure has NULL natsMsg Pointer for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (closure->msg_size <= 0) {
         NDW_LOGERR("*** FATAL ERROR: vendor_closure has invalid msg_size<%d> natsMsg msg for %s\n",
                     closure->msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (closure->is_js) {
