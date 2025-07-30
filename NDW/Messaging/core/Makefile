@@ -1,5 +1,5 @@
 ifeq ($(DEBUG), 1)
-    CFLAGS = -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include
+    CFLAGS = -g -Wall -Wextra -fPIC -Iinclude -I/usr/local/include -DDEBUG
 else
     CFLAGS = -O2 -Wall -Wextra -fPIC -Iinclude -I/usr/local/include
 endif

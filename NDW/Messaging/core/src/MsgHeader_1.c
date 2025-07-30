@@ -8,14 +8,14 @@ ndw_MsgHeader1_Init()
 {
     if (NULL == ndw_MsgHeaderImpl) {
         NDW_LOGERR("*** FATAL ERROR: ndw_msgHeaderImpl global POINTER NOT set!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     int size_of_struct = sizeof(ndw_MsgHeader1_T);
     if (NDW_MSGHEADER1_V1_LE_MSG_SIZE != size_of_struct) {
         NDW_LOGERR("*** FATAL ERROR: Contract and Compiling Issue: NDW_MSGHEADER1_V1_LE_MSG_SIZE <%d> NOT-EQUAL-TO "
                     "sizeof(ndw_MsgHeader1_T) <%d>\n", NDW_MSGHEADER1_V1_LE_MSG_SIZE, size_of_struct);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_MsgHeaderImpl[NDW_MSGHEADER_1].IsValid = ndw_MsgHeader1_IsValid;
@@ -35,7 +35,7 @@ ndw_MsgHeader1_Init()
             NDW_LOGERR("*** ERROR FATAL: sizeof(ndw_MsgHeader1_T) <%zu> "
                         "should be exactly as same as NDW_MSGHEADER1_V1_LE_MSG_SIZE <%d>\n",
                         sizeof(ndw_MsgHeader1_T), (int) NDW_MSGHEADER1_V1_LE_MSG_SIZE);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         h1.vendor_id = 3;
@@ -214,7 +214,7 @@ ndw_MsgHeader1_LE_MsgHeaderSize(int header_id)
         if (NDW_MSGHEADER1_V1_LE_MSG_SIZE != size_of_struct) {
             NDW_LOGERR("*** FATAL ERROR: Contract and Compiling Issue: NDW_MSGHEADER1_V1_LE_MSG_SIZE <%d> NOT-EQUAL-TO "
                         "sizeof(ndw_MsgHeader1_T) <%d>\n", NDW_MSGHEADER1_V1_LE_MSG_SIZE, size_of_struct);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         return NDW_MSGHEADER1_V1_LE_MSG_SIZE;
@@ -254,7 +254,7 @@ ndw_MsgHeader1_SetOutMsgFields(ndw_OutMsgCxt_T* cxt)
         NDW_LOGERR("*** FATAL ERROR: Make sure sizeof(ndw_MsgHeader1_T) <%zu> is equal to "
                     " NDW_MSGHEADER1_V1_LE_MSG_SIZE <%d>\n",
             sizeof(ndw_MsgHeader1_T), NDW_MSGHEADER1_V1_LE_MSG_SIZE);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ph->header_number = (UCHAR_T) NDW_MSGHEADER_1;
@@ -282,7 +282,7 @@ ndw_MsgHeader1_ConvertToLE(UCHAR_T *header_address)
 {
     if (NULL == header_address) {
         NDW_LOGERR("*** FATAL ERROR: NULL header_address parameter!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_MsgHeader1_T* src_header = (ndw_MsgHeader1_T*) header_address;
@@ -294,7 +294,7 @@ ndw_MsgHeader1_ConvertToLE(UCHAR_T *header_address)
     if (NDW_MSGHEADER_1 != src_header->header_number) {
         NDW_LOGERR("*** FATAL ERROR: Expected header_id<%d> but src_header has header_id<%d>\n",
                     NDW_MSGHEADER_1, src_header->header_number);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NDW_MSGHEADER1_V1_LE_MSG_SIZE != src_header->header_size) {
@@ -302,7 +302,7 @@ ndw_MsgHeader1_ConvertToLE(UCHAR_T *header_address)
                     "NDW_MSGHEADER1_V1_LE_MSG_SIZE <%d> which is also expected to be of "
                     "sizeof(ndw_MsgHeader1_T) <%zu>\n",
                     src_header->header_size, NDW_MSGHEADER1_V1_LE_MSG_SIZE, sizeof(ndw_MsgHeader1_T));
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_MsgHeader1_T tmp_header;
@@ -354,12 +354,12 @@ ndw_MsgHeader1_ConvertFromLE(UCHAR_T *src, UCHAR_T* dest)
 {
     if (NULL == src) {
         NDW_LOGERR("*** FATAL ERROR: NULL src parameter!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == dest) {
         NDW_LOGERR("*** FATAL ERROR: NULL dest parameter!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     UCHAR_T* le_msg = src;

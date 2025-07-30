@@ -51,7 +51,7 @@ ndw_GetDomainHandleInternal()
     ndw_DomainHandle_T* dh = ndw_GetDomainHandle();
     if (NULL == dh) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetDomainHandle from TLS is NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     return dh;
@@ -63,7 +63,7 @@ ndw_GetJsonItem(cJSON* root, const CHAR_T* item, bool mandatory)
 {
     if (NULL == root) {
         NDW_LOGERR("*** FATAL ERROR: NULL CJSON* root parameter!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((NULL == item) || ('\0' == *item)) {
@@ -71,7 +71,7 @@ ndw_GetJsonItem(cJSON* root, const CHAR_T* item, bool mandatory)
         NDW_LOGERR("*** FATAL ERROR: NULL item parameter for cJSON object: <%s>!\n",
                     ((NULL == json_string) ? "?" : json_string));
         free(json_string);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     CHAR_T* value = NULL;
@@ -82,7 +82,7 @@ ndw_GetJsonItem(cJSON* root, const CHAR_T* item, bool mandatory)
             NDW_LOGERR("*** FATAL ERROR: NULL item parameter for item<%s> for cJSON object: <%s>!\n",
                         item, ((NULL == json_string) ? "?" : json_string));
             free(json_string);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
     }
     else
@@ -123,7 +123,7 @@ ndw_LoadDomains(const CHAR_T *jsonfilenamepath, CHAR_T **domain_names)
     }
 
     fseek(file, 0, SEEK_END);
-    LONG_T length = ftell(file);
+    size_t length = ftell(file);
     fseek(file, 0, SEEK_SET);
 
     CHAR_T *json_data = (CHAR_T *)malloc(length + 1);
@@ -133,7 +133,14 @@ ndw_LoadDomains(const CHAR_T *jsonfilenamepath, CHAR_T **domain_names)
         return -3;
     }
 
-    fread(json_data, 1, length, file);
+    size_t nbytes = fread(json_data, 1, length, file);
+    if (nbytes != length) {
+        NDW_LOGERR( "Error reading file: %s\n", jsonfilenamepath);
+        free(json_data);
+        fclose(file);
+        return -4;
+    }
+
     json_data[length] = '\0';
     fclose(file);
 
@@ -141,14 +148,14 @@ ndw_LoadDomains(const CHAR_T *jsonfilenamepath, CHAR_T **domain_names)
     free(json_data);
     if (!root) {
         NDW_LOGERR( "Error parsing JSON\n");
-        return -4;
+        return -5;
     }
 
     cJSON *domains = cJSON_GetObjectItem(root, "Domains");
     if (!domains || !cJSON_IsArray(domains)) {
         NDW_LOGERR( "'Domains' array not found\n");
         cJSON_Delete(root);
-        return -5;
+        return -6;
     }
 
     for (INT_T i = 0; domain_names[i] != NULL; ++i)
@@ -274,13 +281,13 @@ ndw_LoadDomains(const CHAR_T *jsonfilenamepath, CHAR_T **domain_names)
                                         if (NULL == json_async_queue_size) {
                                             NDW_LOGERR("*** FATAL ERROR: Need to specific Topic MsgQueueSize JSON tag for Topic<%s>\n",
                                                     topic->topic_unique_name);
-                                            exit(EXIT_FAILURE);
+                                            ndw_exit(EXIT_FAILURE);
                                         }
 
                                         if ((topic->q_async_size = json_async_queue_size->valueint) <= 0) {
                                             NDW_LOGERR("*** FATAL ERROR: Invalid MsgQueueSize<%d> JSON tag for Topic<%s>\n",
                                                     topic->q_async_size, topic->topic_unique_name);
-                                            exit(EXIT_FAILURE);
+                                            ndw_exit(EXIT_FAILURE);
                                         }
 
                                         topic->q_async_name = strdup(q_name);
@@ -289,7 +296,7 @@ ndw_LoadDomains(const CHAR_T *jsonfilenamepath, CHAR_T **domain_names)
                                         if (NULL == topic->q_async) {
                                             NDW_LOGERR("*** FATAL ERROR: Failed to create Asynchronous Queue based on Queue Name<%s> for Topic<%s>\n",
                                                         topic->q_async_name, topic->topic_unique_name);
-                                            exit(EXIT_FAILURE);
+                                            ndw_exit(EXIT_FAILURE);
                                         }
                                         topic->q_async_enabled = true;
                                     }
@@ -1098,12 +1105,12 @@ ndw_GetConnectionDomain(const CHAR_T* method_name, bool force_exit,
 
     if (NULL == t) {
         NDW_LOGERR( "%s *** FATAL ERROR: ndw_Topic_T* parameter is NULL!\n", prefix);
-        exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
+        ndw_exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
     }
 
     if (NULL == connection) {
         NDW_LOGERR( "*** FATAL ERROR: %s input parameter connection is NULL! For %s\n", prefix, t->debug_desc);
-        exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
+        ndw_exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
     }
 
     ndw_Connection_T* c = t->connection;
@@ -1120,7 +1127,7 @@ ndw_GetConnectionDomain(const CHAR_T* method_name, bool force_exit,
 
     if (NULL == domain) {
         NDW_LOGERR( "*** FATAL ERROR: %s input parameter domain is NULL! For %s\n", prefix, t->debug_desc);
-        exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
+        ndw_exit(EXIT_FAILURE); // Does not make sense to respect force_exit.
     }
 
     ndw_Domain_T* d = c->domain;

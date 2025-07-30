@@ -671,6 +671,11 @@ void ndw_print(const CHAR_T* filename, INT_T line_number, const CHAR_T* function
  */
 void ndw_printf(const CHAR_T *format, ...) FORMAT_PRINTF(1, 2);
 
+/**
+* @brief Dump backtrace on fatal error for DEBUG build
+* @param[in] error type
+*/
+extern void ndw_exit(int status);
 
 
 /**

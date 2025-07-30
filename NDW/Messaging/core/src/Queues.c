@@ -226,7 +226,7 @@ void ndw_qBatch_delete_current(NDW_QImpl_T* impl)
     if (NULL == node) {
         fprintf(stderr, "*** FATAL ERROR: Attempted to delete NULL node. "
                 "There is no q->consumer_last_node_consumed!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((NULL != node->data) && (NULL != q->cleanup_operator)) {

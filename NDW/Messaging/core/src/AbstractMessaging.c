@@ -28,7 +28,7 @@ static void  ndw_tls_ndw_error_Init()
     if (0 != pthread_key_create(&ndw_tls_ndw_error, ndw_tls_ndw_error_Destructor))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_tls_ndw_error!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -61,13 +61,13 @@ ndw_QAsync_CleanupOperator(void* item)
     ndw_Topic_T* t = q_item->topic;
     if (NULL == t) {
         NDW_LOGERR("*** FATAL ERROR: ndw_Topic_T Pointer is NULL in ndw_QAsync_Item_T* structure!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Connection_T* c = t->connection;
     if (NULL == c) {
         NDW_LOGERR("*** FATAL ERROR: ndw_Connection_T Pointer is in Topic Structure for %s\n", t->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[c->vendor_id];
@@ -115,7 +115,7 @@ static void ndw_tls_lastsyncpollmsg_Init()
     if (0 != pthread_key_create(&ndw_tls_lastsyncpollmsg, ndw_tls_lastsyncpollmsg_Destructor))
     {
         NDW_LOGERR("*** FATAL ERROR: Failed to create ndw_tls_lastsyncpollmsg!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 }
 
@@ -126,7 +126,7 @@ ndw_GetErrorDetails()
     ndw_ErrorDetails_T* errMsg = pthread_getspecific(ndw_tls_ndw_error);
     if (NULL == errMsg) {
         NDW_LOGERR("*** FATAL ERROR: ndw_tls_ndw_error has no per thread ErrorDetails!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     return errMsg;
@@ -193,17 +193,17 @@ ndw_initialize_API_Implementations()
             if (i != impl->vendor_id) {
                 NDW_LOGERR( "*** FATAL ERROR: Error at Index <%d> and Impl vendor ID does not match which is: <%d>\n",
                             i, impl->vendor_id);
-                exit(EXIT_FAILURE);
+                ndw_exit(EXIT_FAILURE);
             }
 
             if (NULL == impl->Init) {
                 NDW_LOGERR( "*** FATAL ERROR: Vendor Init() function not set for Impl vendor ID <%d>\n", impl->vendor_id);
-                exit(EXIT_FAILURE);
+                ndw_exit(EXIT_FAILURE);
             }
 
             if (0 != (init_code = impl->Init(impl, i))) {
                 NDW_LOGERR( "*** FATAL ERROR: Vendor Init() function failed with return code <%d> for vendor ID <%d>\n", init_code, impl->vendor_id);
-                exit(EXIT_FAILURE);
+                ndw_exit(EXIT_FAILURE);
             }
 
             if (ndw_verbose) {
@@ -233,7 +233,7 @@ ndw_ProcessVendorConfigurations()
     ndw_Domain_T** domains = ndw_GetAllDomains(&total_domains);
     if ((NULL == domains) || (total_domains <= 0)) {
         NDW_LOGERR("*** FATAL ERROR: There are NO Domains defined!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Domain_T* d = NULL;
@@ -565,12 +565,12 @@ ndw_Connect(const CHAR_T* domain_name, const CHAR_T* connection_name)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == ndw_impl_api[impl_id].Connect) {
         NDW_LOGERR( "*** FATAL ERROR: Connect Function Pointer NOT set! impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T ret_code = ndw_impl_api[impl_id].Connect(connection);
@@ -664,7 +664,7 @@ ndw_ConnectAll(const CHAR_T* domain)
     if (index_failed > 0) {
         if (index_failed > total_connections) {
             NDW_LOGERR( "*** FATAL ERROR: Invalid Index <%d> withtotal indices <%d>\n", index_failed, total_connections);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         list[index_failed] = NULL;
@@ -692,12 +692,12 @@ ndw_Disconnect(const CHAR_T* domain_name, const CHAR_T* connection_name)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == ndw_impl_api[impl_id].Disconnect) {
         NDW_LOGERR( "*** FATAL ERROR: Disconnect Function Ptr NOT set! impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T ret_code = ndw_impl_api[impl_id].Disconnect(connection);
@@ -722,12 +722,12 @@ ndw_IsConnected(const CHAR_T* domain_name, const CHAR_T* connection_name)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == ndw_impl_api[impl_id].IsConnected) {
         NDW_LOGERR( "*** FATAL ERROR: Connect Function Pointer NOT set! impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     bool ret_code = ndw_impl_api[impl_id].IsConnected(connection);
@@ -751,12 +751,12 @@ ndw_IsClosed(const CHAR_T* domain_name, const CHAR_T* connection_name)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == ndw_impl_api[impl_id].IsClosed) {
         NDW_LOGERR( "*** FATAL ERROR: Connect Function Pointer NOT set! impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     bool ret_code = ndw_impl_api[impl_id].IsClosed(connection);
@@ -780,12 +780,12 @@ ndw_IsDraining(const CHAR_T* domain_name, const CHAR_T* connection_name)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == ndw_impl_api[impl_id].IsDraining) {
         NDW_LOGERR( "*** FATAL ERROR: Connect Function Pointer NOT set! impl_id<%d> for %s\n", impl_id, connection->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     bool ret_code = ndw_impl_api[impl_id].IsDraining(connection);
@@ -835,7 +835,7 @@ ndw_DisconnectAll(const CHAR_T* domain)
     if (index_failed > 0) {
         if (index_failed > total_connections) {
             NDW_LOGERR( "*** FATAL ERROR: Invalid Index <%d> with total indices <%d>\n", index_failed, total_connections);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         list[index_failed] = NULL;
@@ -859,7 +859,7 @@ ndw_Shutdown()
         NDW_LOGERR("*** FATAL ERROR: ndw_Shutdown called from Thread ID<%lu> "
                     "while NDW_Init was invoked from Thread ID<%lu>\n",
                     pthread_self_ndw_Shutdown, pthread_self_ndw_Init); 
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T total_domains = 0;
@@ -965,13 +965,13 @@ ndw_CreateOutMsgCxt(ndw_Topic_T* topic, INT_T header_id, INT_T msg_encoding_form
     ndw_Connection_T* conn = topic->connection;
     if (NULL == conn) {
         NDW_LOGERR("*** FATAL ERROR: FAILED to get ndw_Connnection_T* for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Domain_T* domain = topic->domain;
     if (NULL == domain) {
         NDW_LOGERR("*** FATAL ERROR: FAILED to get ndw_Domain_T* for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((header_id <= 0) || (header_id > NDW_MAX_HEADER_TYPES))  {
@@ -1010,7 +1010,7 @@ ndw_CreateOutMsgCxt(ndw_Topic_T* topic, INT_T header_id, INT_T msg_encoding_form
     if ((header_size <= 0) || (header_size > NDW_MAX_HEADER_SIZE)) {
         NDW_LOGERR("*** FATAL ERROR: Invalid header_size<%d> returned for header_id<%d> and for %s\n",
                     header_size, header_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_OutMsgCxt_T* cxt = ndw_GetOutMsgCxt();
@@ -1019,7 +1019,7 @@ ndw_CreateOutMsgCxt(ndw_Topic_T* topic, INT_T header_id, INT_T msg_encoding_form
                         header_id, msg_size, topic->debug_desc);
             cxt = NULL;
 
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
@@ -1039,46 +1039,46 @@ ndw_CreateOutMsgCxt(ndw_Topic_T* topic, INT_T header_id, INT_T msg_encoding_form
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody failed with return code <%d> for header_id <%d> "
                     "with msg_size <%d> and for %s\n", ret_code, header_id, msg_size, topic->debug_desc);
         cxt = NULL;
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == cxt->header_address) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid header_address <%d> for "
             "header_id <%d> with msg_size <%d> and for %s\n", cxt->header_size, header_id, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (header_id != cxt->header_id) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid header_id <%d> for "
             "expected header_id <%d> with msg_size <%d> and for %s\n", cxt->header_id, header_size, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (header_size != cxt->header_size) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid header_size <%d> "
                     "for header_id <%d> with expected header_size <%d> and for %s\n",
                     cxt->header_size, header_id, header_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (msg_size != cxt->message_size) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid message_size <%d> "
                     "for header_id <%d> with msg_size <%d> and for %s\n",
                     cxt->message_size, header_id, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((msg_size > 0) && (NULL == cxt->message_address)) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has message_address header_id <%d> "
                     "header_size <%d> with msg_size <%d> and for %s\n", header_id, header_size, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (cxt->current_allocation_size < cxt->header_size) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid current allocation_size <%d> "
                     " for header_id <%d> with msg_size <%d> and for %s\n",
                     cxt->current_allocation_size, header_id, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T total_size = header_size + msg_size;
@@ -1086,7 +1086,7 @@ ndw_CreateOutMsgCxt(ndw_Topic_T* topic, INT_T header_id, INT_T msg_encoding_form
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetMsgHeaderAndBody returned has invalid allocation_size <%d> "
                     "while total needed is <%d> for header_id <%d> with msg_size <%d> and for %s\n",
                     cxt->current_allocation_size, total_size, header_id, msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if ((msg_size > 0) && (NULL != msg)) {
@@ -1101,7 +1101,7 @@ ndw_ConvertHeaderToLE(ndw_OutMsgCxt_T* cxt)
 {
     if (NULL == cxt) {
         NDW_LOGERR( "*** FATAL ERROR: returned NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ULONG_T* header_address = cxt->header_address;
@@ -1138,7 +1138,7 @@ ndw_ConvertHeaderToLE(ndw_OutMsgCxt_T* cxt)
                 ((ULONG_T) header_address), header_size,
                 ((ULONG_T) message_address), msg_size,
                 header_id, header_id_in_cxt);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T header_size_in_cxt = (INT_T) *(((UCHAR_T*) header_address) + 1);
@@ -1147,7 +1147,7 @@ ndw_ConvertHeaderToLE(ndw_OutMsgCxt_T* cxt)
                 ((ULONG_T) header_address), header_size,
                 ((ULONG_T) message_address), msg_size,
                 header_id, header_size, header_size_in_cxt);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T ret_code = ndw_MsgHeaderImpl[header_id].ConvertToLE((UCHAR_T*) header_address);
@@ -1174,7 +1174,7 @@ ndw_PublishMsg()
     ndw_OutMsgCxt_T* cxt = ndw_GetOutMsgCxt();
     if (NULL == cxt) {
         NDW_LOGERR( "*** FATAL ERROR: ndw_GetOutMsgCxt(): returned NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Topic_T* t = cxt->topic;
@@ -1202,7 +1202,7 @@ ndw_PublishMsg()
     ndw_Connection_T* conn = t->connection;
     if (NULL == conn) {
         NDW_LOGERR( "*** FATAL: Connection POINTER not set for header_address not set in cxt! For %s\n", t->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     // Build the header fields.
@@ -1295,7 +1295,7 @@ ndw_SubscribeAsync(ndw_Topic_T* topic)
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL: Connection POINTER not set for %s NOTE: header_address not set in cxt!\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T vendor_id = connection->vendor_id;
@@ -1329,7 +1329,7 @@ ndw_Unsubscribe(ndw_Topic_T* topic)
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL: Connection POINTER not set for %s NOTE: header_address not set in cxt!\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T vendor_id = connection->vendor_id;
@@ -1466,7 +1466,7 @@ ndw_PollAsyncQueue(ndw_Topic_T* topic, LONG_T timeout_us)
 
     if (NULL == topic->q_async) {
         NDW_LOGERR("*** FATAL ERROR: q_async Pointer is NULL for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     NDW_QData_T q_data;
@@ -1489,7 +1489,7 @@ ndw_PollAsyncQueue(ndw_Topic_T* topic, LONG_T timeout_us)
     ndw_QAsync_Item_T* q_item = (ndw_QAsync_Item_T*) q_data.data;
     if (NULL == q_item) {
         NDW_LOGERR("*** FATAL ERROR: ndw_QAsync_Item* is NULL for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     topic->last_msg_header_received = NULL;
@@ -1499,7 +1499,7 @@ ndw_PollAsyncQueue(ndw_Topic_T* topic, LONG_T timeout_us)
     if (NULL == msginfo) {
         NDW_LOGERR("*** FATAL ERROR:  ndw_MsgHeader_Info_T* returned is NULL! msg_size<%d>. For<%s>\n",
                     q_item->msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     topic->last_msg_received_time = ndw_GetCurrentUTCNanoseconds();
@@ -1535,13 +1535,13 @@ ndw_CommitAsyncQueuedMessge(ndw_Topic_T* topic)
 
     if (NULL == topic->q_async) {
         NDW_LOGERR("*** FATAL ERROR: q_async is NULL for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T impl_id = topic->connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[impl_id];
@@ -1575,24 +1575,24 @@ ndw_HandleVendorAsyncMessage(ndw_Topic_T* topic, UCHAR_T* msg, INT_T msg_size, v
 {
     if (NULL == topic) {
         NDW_LOGERR("*** FATAL ERROR: Parameter ndw_Topic_T* is NULL! (msg_size : <%d>)\n", msg_size);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL ERROR: ndw_Connection_T* is null for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (topic->q_async_enabled) {
         if (NULL == topic->q_async) {
             NDW_LOGERR("*** FATAL ERROR: Topic has q_async_enabled but q_async object is NULL for %s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         if (NULL == vendor_closure) {
             NDW_LOGERR("*** FATAL ERROR: Topic has q_async_enabled but vendor_closure is NULL!%s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         ndw_QAsync_Item_T* q_item = calloc(1, sizeof(ndw_QAsync_Item_T));
@@ -1603,7 +1603,7 @@ ndw_HandleVendorAsyncMessage(ndw_Topic_T* topic, UCHAR_T* msg, INT_T msg_size, v
 
         if (0 != ndw_QInsert(topic->q_async, q_item)) {
             NDW_LOGERR("*** FATAL ERROR: ndw_QInsert failed for %s\n", topic->debug_desc);
-            exit(EXIT_FAILURE);
+            ndw_exit(EXIT_FAILURE);
         }
 
         return 0;
@@ -1612,19 +1612,19 @@ ndw_HandleVendorAsyncMessage(ndw_Topic_T* topic, UCHAR_T* msg, INT_T msg_size, v
     if (NULL != topic->last_msg_header_received) {
         NDW_LOGERR("*** FATAL ERROR: Asynchronous message arrived but last_msg_header_received is NOT NULL for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != topic->last_msg_received) {
         NDW_LOGERR("*** FATAL ERROR: Asynchronous message arrived but last_msg_received is NOT NULL for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (0 != topic->last_msg_received_size) {
         NDW_LOGERR("*** FATAL ERROR: Asynchronous message arrived but last_msg_received_size<%d> is NOT zero for %s\n",
                     topic->last_msg_received_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     topic->last_msg_header_received = NULL;
@@ -1634,7 +1634,7 @@ ndw_HandleVendorAsyncMessage(ndw_Topic_T* topic, UCHAR_T* msg, INT_T msg_size, v
     if (NULL == msginfo) {
         NDW_LOGERR("*** FATAL ERROR:  ndw_MsgHeader_Info_T* returned is NULL! msg_size<%d>. For<%s>\n",
                     msg_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     topic->last_msg_received_time = ndw_GetCurrentUTCNanoseconds();
@@ -1712,7 +1712,7 @@ ndw_GetQueuedMsgCount(ndw_Topic_T* topic, ULONG_T* count)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
     
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[impl_id];
@@ -1742,7 +1742,7 @@ ndw_SubscribeSynchronous(ndw_Topic_T* topic)
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR("*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[impl_id];
@@ -1763,7 +1763,7 @@ ndw_SynchronousPollForMsg(ndw_Topic_T* topic, LONG_T timeout_ms, LONG_T* dropped
         (ndw_LastSyncPollMsg_T*) pthread_getspecific(ndw_tls_lastsyncpollmsg);
     if (NULL == last_sync_poll_msg) {
         NDW_LOGERR("*** FATAL ERROR: pthread_getspecific(ndw_tls_lastsyncpollmsg) returned NULL!\n");
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     memset(last_sync_poll_msg, 0,sizeof(ndw_LastSyncPollMsg_T));
@@ -1777,24 +1777,24 @@ ndw_SynchronousPollForMsg(ndw_Topic_T* topic, LONG_T timeout_ms, LONG_T* dropped
 
     if (NULL != topic->last_msg_header_received) {
         NDW_LOGERR("*** FATAL ERROR: Topic last_msg_header_received is NOT NULL for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL != topic->last_msg_received) {
         NDW_LOGERR("*** FATAL ERROR: Topic last_msg_received is NOT NULL for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (0 != topic->last_msg_received_size) {
         NDW_LOGERR("*** FATAL ERROR: Topic last_msg_received_size<%d> is NOT zero for %s\n",
                 topic->last_msg_received_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T impl_id = connection->vendor_id;
     if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
         NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[impl_id];
@@ -1830,7 +1830,7 @@ ndw_SynchronousPollForMsg(ndw_Topic_T* topic, LONG_T timeout_ms, LONG_T* dropped
     ndw_InMsgCxt_T* msginfo = ndw_LE_to_MsgHeader((UCHAR_T*) msg, msg_length);
     if (NULL == msginfo) {
         NDW_LOGERR( "*** FATAL ERROR:  ndw_MsgHeader_Info_T* returned is NULL! (msg_size : <%d>)\n", msg_length);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     last_sync_poll_msg->topic = topic;
@@ -1879,37 +1879,37 @@ ndw_CommitLastMsg(ndw_Topic_T* topic)
     void* vendor_closure = topic->last_msg_vendor_closure;
     if (NULL == vendor_closure) {
         NDW_LOGERR("*** FATAL ERROR: There is no vendor_closure Pointer in for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == topic->last_msg_header_received) {
         NDW_LOGERR("*** FATAL ERROR: There is no last_msg_header_received Pointer in for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (NULL == topic->last_msg_received) {
         NDW_LOGERR("*** FATAL ERROR: There is no last_msg_received Pointer in for %s\n", topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     if (topic->last_msg_received_size <= 0) {
         NDW_LOGERR("*** FATAL ERROR: Invalid last_msg_received_size<%d> for %s\n",
                      topic->last_msg_received_size, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_Connection_T* connection = topic->connection;
     if (NULL == connection) {
         NDW_LOGERR("*** FATAL ERROR: ndw_Connection_T Pointer is NULL in Topic Structure for %s\n",
                     topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     ndw_ImplAPI_T *impl = &ndw_impl_api_structure[connection->vendor_id];
     if (NULL == impl) {
         NDW_LOGERR("*** FATAL ERROR: impl->CommigLstMsg() function pointer is NULL for "
                     "Vendor ID: <%d> and for %s\n", connection->vendor_id, topic->debug_desc);
-        exit(EXIT_FAILURE);
+        ndw_exit(EXIT_FAILURE);
     }
 
     INT_T ret_code = impl->CommitLastMsg(topic, vendor_closure);
