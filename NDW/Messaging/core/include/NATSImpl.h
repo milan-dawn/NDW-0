@@ -202,6 +202,7 @@ typedef struct ndw_NATS_Topic
     LONG_T initiation_time;                     // Topic initiation time in UTC.
     LONG_T total_messages_published;            // Total messages published on this Topic since application started.
     LONG_T total_messages_received;             // Total messages received on this Topic since application started.
+    LONG_T total_messages_get_requestmsg;       // Total messages response received for published on Topic since app started.
 
     ndw_NATS_Connection_T* nats_connection;     // Physical NATS Connection object Pointer.
 

@@ -1,0 +1,19 @@
+{
+  "NDWAppConfig": {
+    "AppName": "My App",
+    "Topics": [
+      {
+        "LogicalUniqueName": "Topic4",
+        "Domain": "DomainA",
+        "Connection": "NATSConn1",
+        "TopicName": "ACME.Orders",
+        "Enabled": true,
+        "Publish": true,
+        "Subscribe": true,
+        "PublishType": "NATS",
+        "SubscribeType": "NATSGetResp",
+        "PollTimeoutus" : 10
+      }
+    ]
+  }
+}

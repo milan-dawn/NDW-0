@@ -17,6 +17,10 @@ extern bool ndw_NATS_IsJSPubSub(ndw_Topic_T*);
 extern INT_T ndw_NATS_JSPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length, LONG_T timeout_ms, void** vendor_closure);
 extern INT_T ndw_NATS_CommitLastMsg(ndw_Topic_T* topic, void* vendor_closure);
 
+extern INT_T ndw_NATS_Publish_ResponseForRequestMsg(ndw_Topic_T* topic);
+extern INT_T ndw_NATS_GetResponseForRequestMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
+                                LONG_T timeout_ms, void** vendor_closure);
+
 typedef struct ndw_NATS_Closure
 {
     LONG_T counter;                         // Incremental counter.
@@ -918,6 +922,8 @@ ndw_NATS_Init(ndw_ImplAPI_T* impl, INT_T vendor_id)
     impl->GetQueuedMsgCount = ndw_NATS_GetQueuedMsgCount;
     impl->SubscribeSynchronously = ndw_NATS_SubscribeSynchronously;
     impl->SynchronousPollForMsg = ndw_NATS_SynchronousPollForMsg;
+    impl->Publish_ResponseForRequestMsg = ndw_NATS_Publish_ResponseForRequestMsg;
+    impl->GetResponseForRequestMsg = ndw_NATS_GetResponseForRequestMsg;
     impl->CommitLastMsg = ndw_NATS_CommitLastMsg;
     impl->CommitQueuedMsg = ndw_NATS_CommitQueuedMsg;
     impl->CleanupQueuedMsg = ndw_NATS_CleanupQueuedMsg;
@@ -1150,7 +1156,7 @@ ndw_NATS_PublicationBackoff(ndw_NATS_Connection_T* conn)
 } // end method ndw_NATS_PublicationBackoff
 
 INT_T
-ndw_NATS_PublishMsg()
+ndw_NATS_Publish_Internal(const char* subject)
 {
     ndw_OutMsgCxt_T* cxt_msg = ndw_GetOutMsgCxt();
     if (NULL == cxt_msg) {
@@ -1191,7 +1197,7 @@ ndw_NATS_PublishMsg()
         return -5;
     }
 
-    if (NDW_ISNULLCHARPTR(t->pub_key)) {
+    if (NDW_ISNULLCHARPTR(subject)) {
         NDW_LOGERR("*** FATAL ERROR: pub_key is NULL in Topic! %s\n", t->debug_desc);
         ndw_exit(EXIT_FAILURE);
     }
@@ -1218,7 +1224,7 @@ ndw_NATS_PublishMsg()
     INT_T ret_code = -9;
     for (INT_T i = 0; i < max_tries; i++)
     {
-        natsStatus status = natsConnection_Publish( nats_connection->conn, t->pub_key,
+        natsStatus status = natsConnection_Publish( nats_connection->conn, subject,
                                                 (const void*) start_address, (INT_T) total_size);
         if (NATS_OK == status) {
             nats_topic->total_messages_published += 1;
@@ -1234,6 +1240,25 @@ ndw_NATS_PublishMsg()
     }
 
     return ret_code;
+} // end method ndw_NATS_PublishMsg()
+
+INT_T
+ndw_NATS_PublishMsg()
+{
+    ndw_OutMsgCxt_T* cxt_msg = ndw_GetOutMsgCxt();
+    if (NULL == cxt_msg) {
+        NDW_LOGERR("*** FATAL ERROR: ndw_GetOutMsg() returned NULL!\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_Topic_T* t = cxt_msg->topic;
+
+    if (NULL == t) {
+        NDW_LOGERR("*** FATAL ERROR: new_Topic_T* is NULL in ndw_OutMsgCxt_T*\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    return ndw_NATS_Publish_Internal(t->pub_key);
 } // end method ndw_NATS_PublishMsg()
 
 static INT_T
@@ -1604,6 +1629,151 @@ ndw_NATS_SynchronousPollForMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* ms
     }
 } // end method ndw_NATS_SynchronousPollForMsg
 
+INT_T
+ndw_NATS_Publish_ResponseForRequestMsg(ndw_Topic_T* topic)
+{
+    ndw_NATS_Closure_T* vendor_closure = topic->last_msg_vendor_closure;
+    if (NULL == vendor_closure) {
+        NDW_LOGERR("*** ERROR: There is no vendor_closure Pointer in for Request-Response "
+                   "feature to work off of the last message for %s\n", topic->debug_desc);
+        return -1; // Do not Exit!
+    }
+
+    const natsMsg* nats_msg = vendor_closure->nats_msg;
+    if (NULL == nats_msg) {
+        NDW_LOGERR("*** ERROR: vendor_closure has NULL natsMsg Pointer for %s\n", topic->debug_desc);
+        return -2; // Do not Exit!
+    }
+    const char* reply_subject = natsMsg_GetReply(nats_msg);
+    if (NULL == reply_subject) {
+        NDW_LOGERR("*** ERROR: vendor_closure has natsMsg but no Response Subject per "
+                   "natsMsg_GetRepy(nats_msg) for %s\n", topic->debug_desc);
+        return -3; // Do not Exit!
+    }
+
+    //return ndw_NATS_Publish_Internal(subject);  this blow up, as this callback thread do not tls specific outMsgCtx
+
+    ndw_NATS_Connection_T* nats_connection = vendor_closure->nats_connection;
+
+    if (NULL == nats_connection) {
+        NDW_LOGERR("*** ERROR: vendor_closure has NULL connection Pointer for %s\n", topic->debug_desc);
+        return -4; // Do not Exit!
+    }
+
+    const CHAR_T* user_msg = natsMsg_GetData(nats_msg);
+    INT_T msg_size = natsMsg_GetDataLength(nats_msg);
+
+    natsStatus status = natsConnection_Publish(nats_connection->conn,
+				reply_subject, (const void*) user_msg, msg_size);
+    if (status != NATS_OK) {
+        NDW_LOGERR("NATS message publish failed natsStatus<%d> %s\n", status, topic->debug_desc);
+        return -5; // Do not Exit!
+    } else {
+        status = natsConnection_Flush(nats_connection->conn);
+        if (status != NATS_OK) {
+            NDW_LOGERR("NATS connnection flush failed natsStatus<%d> %s\n", status, topic->debug_desc);
+        }
+    }
+
+    return 0;
+
+} // end ndw_NATS_Publish_ResponseForRequestMsg(void)
+
+INT_T
+ndw_NATS_GetResponseForRequestMsg(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length,
+                                LONG_T timeout_ms, void** vendor_closure)
+{
+    ndw_OutMsgCxt_T* cxt_msg = ndw_GetOutMsgCxt();
+    if (NULL == cxt_msg) {
+        NDW_LOGERR("*** FATAL ERROR: ndw_GetOutMsg() returned NULL!\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_Topic_T* t = cxt_msg->topic;
+    ndw_NATS_TopicCxt_T* cxt_topic = NDW_NATS_POPULATECXT(t);
+
+    if (t->disabled || t->connection->disabled) {
+        NDW_LOGERR("*** ERROR: topic or topic connection disabled!\n");
+        return 0;
+    }
+
+    ndw_Connection_T* c = cxt_topic->connection;
+
+    if (c->disabled) {
+        NDW_LOGERR("*** ERROR: ctx topic connection disabled!\n");
+        return 0;
+    }
+
+    CHAR_T* start_address = (CHAR_T*) cxt_msg->header_address;
+    INT_T header_size = cxt_msg->header_size;
+    INT_T msg_size = cxt_msg->message_size;
+    INT_T total_size = header_size + msg_size;
+
+    if (! ndw_NATS_IsConnected(c)) {
+        NDW_LOGTOPICERRMSG("Connection was NOT established (before)!", t);
+        return -3;
+    }
+
+    ndw_NATS_Connection_T* nats_connection = (ndw_NATS_Connection_T*) c->vendor_opaque;
+    if (NULL == nats_connection) {
+        NDW_LOGERR("*** WARNING: ndw_NATS_Connection_T* not yet allocated for %s\n", t->debug_desc);
+        return -4;
+    }
+
+    if (! t->is_pub_enabled) {
+        NDW_LOGERR("*** WARNING: Topic is NOT enabled for Publication! %s\n", t->debug_desc);
+        return -5;
+    }
+
+    if (NDW_ISNULLCHARPTR(t->pub_key)) {
+        NDW_LOGERR("*** FATAL ERROR: pub_key is NULL in Topic! %s\n", t->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_NATS_Topic_T* nats_topic = cxt_topic->nats_topic;
+
+    *vendor_closure = NULL;
+    *msg_length = 0;
+
+    natsStatus status;
+    natsMsg *request_msg = NULL;
+    status = natsMsg_Create(&request_msg, t->pub_key, NULL, start_address, total_size);
+    if (status != NATS_OK) {
+        NDW_LOGERR("*** FATAL ERROR: nats message create failed! %s\n", t->debug_desc);
+        return -6;
+    }
+
+    natsMsg *reply_msg = NULL;
+    status = natsConnection_RequestMsg(&reply_msg, nats_connection->conn, request_msg, timeout_ms);
+
+    natsMsg_Destroy(request_msg);
+    request_msg = NULL;
+
+    if (NATS_OK == status && (reply_msg != NULL)) {
+        const CHAR_T* user_msg = natsMsg_GetData(reply_msg);
+        INT_T reply_msg_size = natsMsg_GetDataLength(reply_msg);
+
+        ndw_NATS_Closure_T* closure = NDW_NATS_GET_EMPTY_CLOSURE(topic);
+
+        closure->nats_msg = reply_msg;
+        closure->user_msg = user_msg;
+        closure->msg_size = reply_msg_size;
+
+        *msg = user_msg;
+        *msg_length = reply_msg_size;
+        *vendor_closure = closure;
+        nats_topic->total_messages_get_requestmsg += 1;
+
+        return 1;
+    } else if (NATS_TIMEOUT != status) {
+        NDW_LOGERR("Get Response from Requested Msg failed with NATS error code<%s> for %s\n",
+                        natsStatus_GetText(status), topic->debug_desc);
+        nats_clearLastError();
+        return -7;
+    }
+
+    return 0;
+} // end method ndw_NATS_GetResponseForRequestMsg
 
 /*
  * NOTE: Talk about complexity in handling subscription using JetStream!!
