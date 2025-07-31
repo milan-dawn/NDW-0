@@ -1349,6 +1349,221 @@ ndw_Unsubscribe(ndw_Topic_T* topic)
 
 } // end method ndw_UnsubscribeToTopic
 
+// Send message to NATS INBOX (Subject).
+// It will use the ndw_OutMsgCxt_T* built by invoking ndw_CreateOutMsgCxt(...) method.
+// Returns 0 on success.
+INT_T
+ndw_Publish_ResponseForRequestMsg(ndw_Topic_T* topic)
+{
+    if (NULL == topic) {
+        NDW_LOGERR("*** FATAL ERROR: NULL ndw_Topic_T Pointer!\n");
+    }
+
+    void* vendor_closure = topic->last_msg_vendor_closure;
+    if (NULL == vendor_closure) {
+        NDW_LOGERR("*** FATAL ERROR: There is no vendor_closure Pointer in for %s\n", topic->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    if (NULL == topic->last_msg_header_received) {
+        NDW_LOGERR("*** FATAL ERROR: There is no last_msg_header_received Pointer in for %s\n", topic->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    if (NULL == topic->last_msg_received) {
+        NDW_LOGERR("*** FATAL ERROR: There is no last_msg_received Pointer in for %s\n", topic->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    if (topic->last_msg_received_size <= 0) {
+        NDW_LOGERR("*** FATAL ERROR: Invalid last_msg_received_size<%d> for %s\n",
+                     topic->last_msg_received_size, topic->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+
+    ndw_OutMsgCxt_T* cxt = ndw_GetOutMsgCxt();
+
+    if (NULL == cxt) {
+        NDW_LOGERR( "*** FATAL ERROR: ndw_GetOutMsgCxt(): returned NULL!\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_Topic_T* t = cxt->topic;
+    if (NULL == t) {
+        NDW_LOGERR( "*** WARNING: Topic NOT set!");
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -1; // Something is wrong. Maybe event ndw_CreateOutMsgCxt(...) was not invoked?!
+    }
+
+    if (t->disabled)
+        return 0;
+
+    if (! t->is_pub_enabled) {
+        NDW_LOGERR("*** WARNING: Topic is not enabled for Publishing! %s\n", t->debug_desc);
+        return -2;
+    }
+
+    ULONG_T* header_address = cxt->header_address;
+    if (NULL == header_address) {
+        NDW_LOGERR( "*** WARNING: %s header_address not set in cxt!\n", t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -2; // Something is wrong. Maybe event ndw_CreateOutMsgCxt(...) was not invoked?!
+    }
+
+    ndw_Connection_T* conn = t->connection;
+    if (NULL == conn) {
+        NDW_LOGERR( "*** FATAL: Connection POINTER not set for header_address not set in cxt! For %s\n", t->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    // Build the header fields.
+    INT_T header_id = cxt->header_id;
+    INT_T header_size = cxt->header_size;
+    if ((header_id <= 0) || (header_id > NDW_MAX_HEADER_TYPES)) {
+        NDW_LOGERR( "*** ERROR: Invalid header_id<%d> with header_size<%d> in cxt! For %s\n",
+                   header_id, header_size, t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -3;
+    }
+
+    INT_T ret_set_fields = ndw_MsgHeaderImpl[header_id].SetOutMsgFields(cxt);
+    if (0 != ret_set_fields) {
+        NDW_LOGERR( "*** ERROR: FAILED to set fields for header_id<%d> with header_size<%d> with ret_set_fields<%d> For %s\n",
+                    header_id, header_size, ret_set_fields, t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -4;
+    }
+
+    // Convert outgoing message to LE format.
+    INT_T conversion_code = ndw_ConvertHeaderToLE(cxt);
+    if (0 != conversion_code) {
+        NDW_LOGERR("*** ERROR ndw_ConvertHeaderToLE() returned conversion_code<%d> for %s\n", conversion_code, t->debug_desc);
+        NDW_LOGTOPICERRMSG("*** ERROR: Could not convert outgoing message header fields to LE format!\n", t);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -5;
+    }
+
+    INT_T vendor_id = conn->vendor_id;
+    ndw_ImplAPI_T* impl = &ndw_impl_api_structure[vendor_id];
+
+    INT_T ret_code = impl->Publish_ResponseForRequestMsg(topic);
+    if (0 != ret_code) {
+        NDW_LOGERR("*** ERROR: Vendor Implementation could NOT handle Response For Request of Last Message for %s\n",
+                    topic->debug_desc);
+    }
+
+    return ret_code;
+
+} // end ndw_Publish_ResponseForRequestMsg()
+
+INT_T
+ndw_GetResponseForRequestMsg(ndw_Topic_T* topic, LONG_T timeout_ms)
+{
+    ndw_OutMsgCxt_T* cxt = ndw_GetOutMsgCxt();
+    if (NULL == cxt) {
+        NDW_LOGERR( "*** FATAL ERROR: ndw_GetRsponseForRequestMsg(): returned NULL!\n");
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_Topic_T* t = cxt->topic;
+    if (NULL == t) {
+        NDW_LOGERR( "*** WARNING: Topic NOT set!");
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -1; // Something is wrong. Maybe event ndw_CreateOutMsgCxt(...) was not invoked?!
+    }
+
+    if (t->disabled)
+        return 0;
+
+    if (! t->is_pub_enabled) {
+        NDW_LOGERR("*** WARNING: Topic is not enabled for Publishing! %s\n", t->debug_desc);
+        return -2;
+    }
+
+    ULONG_T* header_address = cxt->header_address;
+    if (NULL == header_address) {
+        NDW_LOGERR( "*** WARNING: %s header_address not set in cxt!\n", t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -2; // Something is wrong. Maybe event ndw_CreateOutMsgCxt(...) was not invoked?!
+    }
+
+    ndw_Connection_T* connection = t->connection;
+    if (NULL == connection) {
+        NDW_LOGERR( "*** FATAL: Connection POINTER not set for header_address not set in cxt! For %s\n", t->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    // Build the header fields.
+    INT_T header_id = cxt->header_id;
+    INT_T header_size = cxt->header_size;
+    if ((header_id <= 0) || (header_id > NDW_MAX_HEADER_TYPES)) {
+        NDW_LOGERR( "*** ERROR: Invalid header_id<%d> with header_size<%d> in cxt! For %s\n",
+                   header_id, header_size, t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -3;
+    }
+
+    INT_T ret_set_fields = ndw_MsgHeaderImpl[header_id].SetOutMsgFields(cxt);
+    if (0 != ret_set_fields) {
+        NDW_LOGERR( "*** ERROR: FAILED to set fields for header_id<%d> with header_size<%d> with ret_set_fields<%d> For %s\n",
+                    header_id, header_size, ret_set_fields, t->debug_desc);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -4;
+    }
+
+    // Convert outgoing message to LE format.
+    INT_T conversion_code = ndw_ConvertHeaderToLE(cxt);
+    if (0 != conversion_code) {
+        NDW_LOGERR("*** ERROR ndw_ConvertHeaderToLE() returned conversion_code<%d> for %s\n", conversion_code, t->debug_desc);
+        NDW_LOGTOPICERRMSG("*** ERROR: Could not convert outgoing message header fields to LE format!\n", t);
+        memset(cxt, 0, sizeof(ndw_OutMsgCxt_T));
+        return -5;
+    }
+
+    INT_T impl_id = connection->vendor_id;
+    if ((impl_id < 1) || (impl_id >= NDW_MAX_API_IMPLEMENTATIONS)) {
+        NDW_LOGERR( "*** FATAL ERROR: Invalid connection vendor_id <%d> for %s\n", impl_id, topic->debug_desc);
+        ndw_exit(EXIT_FAILURE);
+    }
+
+    ndw_ImplAPI_T *impl = &ndw_impl_api_structure[impl_id];
+
+    CHAR_T* msg = NULL;
+    INT_T msg_length = 0;
+    void* vendor_closure = NULL;
+
+    INT_T ret_code = impl->GetResponseForRequestMsg(
+                    topic, (const CHAR_T**) &msg, &msg_length, timeout_ms, &vendor_closure);
+
+    if (ret_code < 0) {
+        NDW_LOGERR("impl->GetResponseForRequestMsg returned error code <%d> impl_id<%d> for %s\n",
+                    ret_code, impl_id, topic->debug_desc);
+        return ret_code;
+    }
+
+    if (0 == ret_code) {
+        // This is a timeout case.
+        // We do NOT expect a vendor_closure in such a case.
+        if (NULL != vendor_closure) {
+            NDW_LOGERR("*** FATAL ERROR: While polling for message it timed out, but incorrectly getting "
+                        "a vendor_closure object for %s\n", topic->debug_desc);
+            ndw_exit(EXIT_FAILURE);
+        }
+
+        return 0;
+    }
+
+    if ((NULL == msg) || (msg_length <= 0)) {
+        return 0;
+    }
+
+    NDW_LOGX("<<< Success [%s] GETRESPFORREQ MESSAGE: msg<%s> msg_length<%d>"
+             " for %s\n", topic->topic_unique_name, msg, msg_length, topic->debug_desc);
+
+    return 1;
+}
+
 void
 ndw_PrintStatsForTopic(ndw_Topic_T* t)
 {
@@ -1918,7 +2133,6 @@ ndw_CommitLastMsg(ndw_Topic_T* topic)
                     topic->debug_desc);
     }
 
-    
     topic->last_msg_header_received = NULL;
     topic->last_msg_received = NULL;
     topic->last_msg_received_size = 0;

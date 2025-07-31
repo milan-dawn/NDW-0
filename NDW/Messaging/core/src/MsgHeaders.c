@@ -576,8 +576,14 @@ ndw_GetOutMsgCxt()
 {
     ndw_OutMsgCxt_T* mha = pthread_getspecific(ndw_tls_OutMsgCxt);
     if (NULL == mha) {
+#if 0
         NDW_LOGERR( "*** FATAL ERROR: ThreadID<%lu> ndw_tls_OutMsgCxt is NULL!\n", pthread_self());
         ndw_exit(EXIT_FAILURE);
+#endif
+        // When we get an async message we cannot do ndw_ThreadInit
+        mha = calloc(1, sizeof(ndw_OutMsgCxt_T));
+        NDW_LOGX("TLS: ALLOCATE: ThreadID<%lu> out_msg_cxt<%p>\n", pthread_self(), mha);
+        pthread_setspecific(ndw_tls_OutMsgCxt, mha);
     }
     return mha;
 } // end method ndw_GetOutMsgCxt

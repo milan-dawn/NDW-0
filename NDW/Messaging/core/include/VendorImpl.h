@@ -171,6 +171,11 @@ typedef struct ndw_ImplAPI
 
     INT_T (*SubscribeSynchronously)(ndw_Topic_T* topic);
     INT_T (*SynchronousPollForMsg)(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length, LONG_T timeout_ms, LONG_T* dropped_messages, void** vendor_closure);
+
+    INT_T (*Publish_ResponseForRequestMsg)(ndw_Topic_T* topic);
+    INT_T (*GetResponseForRequestMsg)(ndw_Topic_T* topic, const CHAR_T** msg, INT_T* msg_length, LONG_T timeout_ms, void** vendor_closure);
+
+
     INT_T (*CommitLastMsg)(ndw_Topic_T* topic, void* vendor_closure);
 
     INT_T (*GetQueuedMsgCount)(ndw_Topic_T* topic, ULONG_T* count);

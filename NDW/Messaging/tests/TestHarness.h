@@ -12,6 +12,7 @@ typedef INT_T (*publish_function)(ndw_Topic_T* topic);
 typedef INT_T (*subscribe_function)(ndw_Topic_T* topic);
 typedef INT_T (*poll_function)(ndw_Topic_T* topic, LONG_T timeout_us);
 typedef INT_T (*poll_commit_function)(ndw_Topic_T* topic);
+typedef INT_T (*resreq_function)(ndw_Topic_T* topic, LONG_T timeout_us);
 
 typedef struct publish_function_ptr_data
 {
@@ -31,6 +32,13 @@ typedef struct poll_function_ptr_data
     const char* function_name;
 } poll_function_ptr_data_T;
 
+typedef struct resreq_function_ptr_data
+{
+    subscribe_function function;
+    resreq_function resreq_function;
+    const char* function_name;
+} resreq_function_ptr_data_T;
+
 typedef struct poll_commit_function_ptr_data
 {
     poll_commit_function function;
@@ -49,7 +57,8 @@ typedef enum {
     NATSPoll,
     JSPush,
     JSPull,
-    QAsync
+    QAsync,
+    NATSGetResp,
 } SubscribeType;
 
 typedef struct AppTopic {
@@ -65,7 +74,7 @@ typedef struct AppTopic {
     bool Subscribe_Enabled;
     bool Publish;
     bool Subscribe;
-    int poll_timeout_us;
+    int  poll_timeout_us;
 
     PublishType PublishType;
     SubscribeType SubscribeType;
@@ -80,6 +89,8 @@ typedef struct AppTopic {
     publish_function_ptr_data_T function_publish_data;
 
     subscribe_function_ptr_data_T function_subscribe_data;
+
+    resreq_function_ptr_data_T function_resreq_data;
 
     bool is_poll_activity;
     poll_function_ptr_data_T function_poll_data;
@@ -106,11 +117,22 @@ typedef struct {
     INT_T ret_code;
 } poll_subscriber_args;
 
+typedef struct {
+    pthread_t thread_id;
+    int timeout_msec;
+    int ret_code;
+} resp_request_args;
+
+typedef struct {
+    publisher_args p_args;
+    poll_subscriber_args s_args;
+} pub_sub_args;
 
 extern bool is_async_message_handling_enabled;
 
 extern publisher_args* pub_args;
 extern poll_subscriber_args* poll_sub_args;
+extern resp_request_args* res_req_args;
 
 
 extern atomic_long total_published; // Set to zero.
